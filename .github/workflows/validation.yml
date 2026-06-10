@@ -111,6 +111,27 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/Invoke-ValidationSmoke.ps1
 
+      - name: Diagnostics on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Write-Host '=== Service status ==='
+          Get-Service | Where-Object { $_.DisplayName -like '*IIS Administration*' } | Format-Table Name, Status -AutoSize
+          Write-Host '=== Listeners on 55539 ==='
+          netstat -ano | Select-String 55539
+          Write-Host '=== HTTP.sys SSL bindings ==='
+          netsh http show sslcert
+          Write-Host '=== Application event log (IIS Administration API) ==='
+          Get-WinEvent -LogName Application -MaxEvents 500 -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProviderName -like '*IIS Administration*' } |
+            ForEach-Object { Write-Host "[$($_.TimeCreated)] $($_.LevelDisplayName): $($_.Message)`n" }
+          Write-Host '=== Installed appsettings.json ==='
+          Get-ChildItem 'C:\Program Files\IIS Administration' -Recurse -Filter appsettings.json -ErrorAction SilentlyContinue |
+            ForEach-Object { Write-Host "--- $($_.FullName)"; Get-Content $_.FullName }
+          Write-Host '=== Service log files ==='
+          Get-ChildItem 'C:\Program Files\IIS Administration' -Recurse -Include 'log*.txt', 'audit*.txt' -ErrorAction SilentlyContinue |
+            ForEach-Object { Write-Host "--- $($_.FullName)"; Get-Content $_.FullName -Tail 120 }
+
       # The integration suite predates this fork and requires broad IIS feature coverage;
       # it is informational until its results on hosted runners have been triaged.
       - name: Run integration test suite (informational)
