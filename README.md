@@ -4,6 +4,8 @@ Microsoft IIS Administration API
 
 Documentation is available at https://docs.microsoft.com/en-us/IIS-Administration 
 
+This fork targets .NET 10 (LTS). Building requires the .NET 10 SDK (and Visual Studio 2022 17.12 or later for the IDE workflow).
+
 ### Develop and Debug with Visual Studio 2022: ###
 * Clone this project
 * Load the solution (Microsoft.IIS.Administration.sln) in Visual Studio
@@ -44,7 +46,7 @@ msbuild installer /p:configuration=release
 
 
 ### Installation and Known Issues: ###
-* Must first remove preview builds of .Net Core. The service does not work with preview builds of .Net Core.
+* Must first remove preview builds of .NET. The service does not work with preview builds of .NET.
 * Must remove previously installed versions of IIS Administration.
 * **_Repair_** does not work. Must do a full uninstall/re-install.
 * If errors occurred during installation, manually remove folder _C:\Program Files\IIS Administration_ and Windows service _"Microsoft IIS Administration"_.

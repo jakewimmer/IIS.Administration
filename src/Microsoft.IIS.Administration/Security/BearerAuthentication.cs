@@ -40,7 +40,8 @@ namespace Microsoft.IIS.Administration.Security {
             })
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
-                options.SecurityTokenValidators.Add(validator);
+                options.TokenHandlers.Clear();
+                options.TokenHandlers.Add(validator);
 
                 options.Events = new JwtBearerEvents()
                 {

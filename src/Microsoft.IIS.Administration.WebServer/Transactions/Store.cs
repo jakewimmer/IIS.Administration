@@ -59,7 +59,7 @@ namespace Microsoft.IIS.Administration.WebServer
                     if (ManagementUnit.CommitRequested) {
 
                         try {
-                            ManagementUnit.ServerManager.CommitChanges();
+                            ConfigCommitGate.Commit(ManagementUnit.ServerManager.CommitChanges);
                         }
                         catch {
                             AbortTransaction();

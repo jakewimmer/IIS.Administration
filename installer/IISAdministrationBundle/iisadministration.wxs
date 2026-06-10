@@ -37,52 +37,56 @@
                          Result="value"
                          Variable="DOTNET_RUNTIME_VERSION"
                          Win64="$(var.IsWin64)" />
-    <Variable Name="DOTNET_RUNTIME_VERSION_MINIMAL" Type="version" Value='6.0.1' />
+    <Variable Name="DOTNET_RUNTIME_VERSION_MINIMAL" Type="version" Value='10.0.0' />
     <PackageGroup Id="dotnet_core_pkg">
       <ExePackage Id="dotnet_core_exe"
-                  Name="dotnet-runtime-6.0.1-win-x64.exe"
+                  Name="dotnet-runtime-10.0.8-win-x64.exe"
                   Permanent="yes"
                   Compressed="no"
                   Vital="no"
-                  DownloadUrl="https://download.visualstudio.microsoft.com/download/pr/df4372ca-82c8-4bfa-acf9-c49e27279e7e/6bddefd26964017ff520dc1443029e04/dotnet-runtime-6.0.1-win-x64.exe"
+                  DownloadUrl="https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-win-x64.exe"
                   DetectCondition="(DOTNET_RUNTIME_VERSION) AND (DOTNET_RUNTIME_VERSION &gt;= DOTNET_RUNTIME_VERSION_MINIMAL)"
                   InstallCommand="/q /norestart">
+          <!-- TODO before shipping: RemotePayload metadata below still describes the 6.0.1 payload.
+               Regenerate on Windows with: installer\packages\WiX.3.11.1\tools\heat.exe payload <runtime exe> -o payload.wxs -->
           <!-- Information retrieved with the Heat tool of the WiX toolset -->
           <!-- installer\packages\WiX.3.11.1\tools\heat.exe payload dotnet-runtime-6.0.1-win-x64.exe -o dotnet-runtime-6.0.1-win-x64.wxs -->
           <RemotePayload CertificatePublicKey="82114C41DDD3E62FB432F3CFEE5D44FDB02C1471" 
                   CertificateThumbprint="60FF375E5669B98D43EA0E2328E618CF73C0F91D"
-                  Description="Microsoft .NET Runtime - 6.0.1 (x64)" 
+                  Description="Microsoft .NET Runtime - 10.0.8 (x64)" 
                   Hash="5C53CF49B2F58CB8D05C29A865B80690C816975C" 
-                  ProductName="Microsoft .NET Runtime - 6.0.1 (x64)" Size="28383304" Version="6.0.1.30717" /> 
+                  ProductName="Microsoft .NET Runtime - 10.0.8 (x64)" Size="28383304" Version="6.0.1.30717" /> 
       </ExePackage>
     </PackageGroup>
   </Fragment>
 
   <Fragment>
-    <!--This would not work when only 6.0 preview is installed. Must manually uninstall 6.0 preview-->
-    <util:RegistrySearch Id="ASPNET_CORE_60_SHARED_FRAMEWORK_SEARCH"
+    <!--This would not work when only a 10.0 preview is installed. Must manually uninstall the preview-->
+    <util:RegistrySearch Id="ASPNET_CORE_100_SHARED_FRAMEWORK_SEARCH"
                          Root="HKLM"
-                         Key="SOFTWARE\Microsoft\ASP.NET Core\Shared Framework\v6.0"
+                         Key="SOFTWARE\Microsoft\ASP.NET Core\Shared Framework\v10.0"
                          Result="exists"
-                         Variable="ASPNET_CORE_60_SHARED_FRAMEWORK_EXISTS"
+                         Variable="ASPNET_CORE_100_SHARED_FRAMEWORK_EXISTS"
                          Win64="$(var.IsWin64)" />
     <PackageGroup Id="aspnetcore_pkg">
       <ExePackage Id="aspnetcore_exe"
-                  Name="aspnetcore-runtime-6.0.1-win-x64.exe"
+                  Name="aspnetcore-runtime-10.0.8-win-x64.exe"
                   Permanent="yes"
                   Compressed="no"
                   Vital="no"
-                  DownloadUrl="https://download.visualstudio.microsoft.com/download/pr/d526db30-5bfe-4c24-808c-4d8f5d2ba479/ae90c40bdefb2f1775d812ede8e84309/aspnetcore-runtime-6.0.1-win-x64.exe"
-                  DetectCondition="(ASPNET_CORE_60_SHARED_FRAMEWORK_EXISTS)"
+                  DownloadUrl="https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/10.0.8/aspnetcore-runtime-10.0.8-win-x64.exe"
+                  DetectCondition="(ASPNET_CORE_100_SHARED_FRAMEWORK_EXISTS)"
                   InstallCommand="/q /norestart">
 
-        <!-- Information retrieved with the Heat tool of the WiX toolset -->
+        <!-- TODO before shipping: RemotePayload metadata below still describes the 6.0.1 payload.
+               Regenerate on Windows with: installer\packages\WiX.3.11.1\tools\heat.exe payload <runtime exe> -o payload.wxs -->
+          <!-- Information retrieved with the Heat tool of the WiX toolset -->
         <!-- installer\packages\WiX.3.11.1\tools\heat.exe payload aspnetcore-runtime-2.1.9-win-x64.exe -o aspnetcore-runtime-2.1.9-win-x64.wxs -->
         <RemotePayload CertificatePublicKey="82114C41DDD3E62FB432F3CFEE5D44FDB02C1471" 
                   CertificateThumbprint="60FF375E5669B98D43EA0E2328E618CF73C0F91D" 
-                  Description="Microsoft ASP.NET Core 6.0.1 - Shared Framework (x64)" 
+                  Description="Microsoft ASP.NET Core 10.0.8 - Shared Framework (x64)" 
                   Hash="9AFB2F6265FF780E077089C8294F9FFBA7BC049D" 
-                  ProductName="Microsoft ASP.NET Core 6.0.1 - Shared Framework (x64)" Size="8896496" Version="6.0.1.21567" />
+                  ProductName="Microsoft ASP.NET Core 10.0.8 - Shared Framework (x64)" Size="8896496" Version="6.0.1.21567" />
       </ExePackage>
     </PackageGroup>
   </Fragment>

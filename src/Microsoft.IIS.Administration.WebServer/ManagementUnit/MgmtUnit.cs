@@ -42,7 +42,7 @@ namespace Microsoft.IIS.Administration.WebServer
             }
 
             if (activeTransaction == null) {
-                ServerManager.CommitChanges();
+                ConfigCommitGate.Commit(ServerManager.CommitChanges);
                 return true;
             }
             else {

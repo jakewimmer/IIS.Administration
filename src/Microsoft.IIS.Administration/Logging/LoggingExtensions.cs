@@ -37,11 +37,13 @@ namespace Microsoft.IIS.Administration.Logging
                 minLevel = (LogLevel)(1 + (int)LogEventLevel.Fatal);
             }
 
+            var (logPath, logRollingInterval) = RollingLogFile.Resolve(logsRoot, loggingConfiguration.FileName);
+
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel
                 .Is(LoggingConfiguration.ToLogEventLevel(minLevel))
                 .WriteTo
-                .RollingFile(Path.Combine(logsRoot, loggingConfiguration.FileName), retainedFileCountLimit: loggingConfiguration.MaxFiles)
+                .File(logPath, rollingInterval: logRollingInterval, retainedFileCountLimit: loggingConfiguration.MaxFiles)
                 .CreateLogger();
             
             //
@@ -74,11 +76,13 @@ namespace Microsoft.IIS.Administration.Logging
                 minLevel = (LogLevel)(1 + (int)LogEventLevel.Fatal);
             }
 
+            var (auditPath, auditRollingInterval) = RollingLogFile.Resolve(auditRoot, auditingConfiguration.FileName);
+
             AuditAttribute.Logger = new LoggerConfiguration()
                 .MinimumLevel
                 .Is(LoggingConfiguration.ToLogEventLevel(minLevel))
                 .WriteTo
-                .RollingFile(Path.Combine(auditRoot, auditingConfiguration.FileName), retainedFileCountLimit: auditingConfiguration.MaxFiles)
+                .File(auditPath, rollingInterval: auditRollingInterval, retainedFileCountLimit: auditingConfiguration.MaxFiles)
                 .CreateLogger();
 
             _ = services.AddSingleton<INonsensitiveAuditingFields>(new NonsensitiveAuditingFields());
