@@ -116,7 +116,8 @@ jobs:
         run: |
           $bytes = [byte[]]::new(18)
           [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-          $password = [Convert]::ToBase64String($bytes) + '!Aa1'
+          # Hex only: base64 can start with '/', which net.exe parses as an option
+          $password = (($bytes | ForEach-Object { $_.ToString('x2') }) -join '') + '!Aa1'
           Write-Host "::add-mask::$password"
           "IISADMINCI_PW=$password" >> $env:GITHUB_ENV
           net user iisadminci $password /add /y | Out-Null
