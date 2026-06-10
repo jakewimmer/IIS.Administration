@@ -50,8 +50,15 @@ function New-WindowsAuthClient {
     [System.Net.Http.HttpClient]::new($handler)
 }
 
+# With require_windows_authentication enabled the API demands Windows credentials AND an
+# access token on every /api request, mirroring the integration suite's ApiHttpClient.
 function New-TokenClient([string] $accessToken) {
     $handler = [System.Net.Http.HttpClientHandler]::new()
+    if ($UserName) {
+        $handler.Credentials = [System.Net.NetworkCredential]::new($UserName, $Password)
+    } else {
+        $handler.UseDefaultCredentials = $true
+    }
     $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
     $client = [System.Net.Http.HttpClient]::new($handler)
     $client.DefaultRequestHeaders.Add('Access-Token', "Bearer $accessToken")
@@ -148,6 +155,7 @@ Step "Access-keys UI page renders" {
 
 Step "Concurrent app-pool PATCHes return only 200/409, no 500 (issue #324)" {
     $r = $apiClient.GetAsync("$ServerUrl/api/webserver/application-pools").GetAwaiter().GetResult()
+    if ([int]$r.StatusCode -ne 200) { throw "listing app pools: expected 200, got $([int]$r.StatusCode)" }
     $pools = ($r.Content.ReadAsStringAsync().GetAwaiter().GetResult()) | ConvertFrom-Json
     $r.Dispose()
     $pool = $pools.app_pools | Select-Object -First 1
@@ -156,6 +164,11 @@ Step "Concurrent app-pool PATCHes return only 200/409, no 500 (issue #324)" {
 
     $statuses = 1..$ConcurrentPatches | ForEach-Object -Parallel {
         $handler = [System.Net.Http.HttpClientHandler]::new()
+        if ($using:UserName) {
+            $handler.Credentials = [System.Net.NetworkCredential]::new($using:UserName, $using:Password)
+        } else {
+            $handler.UseDefaultCredentials = $true
+        }
         $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
         $client = [System.Net.Http.HttpClient]::new($handler)
         try {
