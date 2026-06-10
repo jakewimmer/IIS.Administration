@@ -75,9 +75,11 @@ paths, the `{Date}` log-name translation, and commit-gate serialization + 409 ma
 `test/Microsoft.IIS.Administration.Tests` integration suite still requires Windows + IIS and is
 unchanged (versions bumped).
 
-### Phase 5 — CI: Azure Pipelines → GitHub Actions — DONE
-`.azure/pipelines/build.yml` and the `azure-pipelines/` signing helpers (Microsoft-internal
-MicroBuild/1ES templates, unusable from a fork) were replaced by `.github/workflows/ci.yml`:
+### Phase 5 — CI: GitHub Actions alongside Azure Pipelines — DONE
+`.github/workflows/ci.yml` is the fork's CI. The upstream `.azure/pipelines/build.yml` and
+`azure-pipelines/` signing helpers are retained untouched (per review: they are Microsoft-internal
+MicroBuild/1ES infrastructure a fork cannot run, but keeping them intact preserves a clean diff for
+upstreaming PRs). The workflow:
 - **windows-latest:** nuget restore → `msbuild /t:publish` → unit tests → Clean-BuildDir →
   installer restore/build (WiX 3.11 comes from `packages.config`) → uploads the same three
   artifacts the old pipeline published (dist, bundle, MSI).
@@ -87,7 +89,11 @@ MicroBuild/1ES templates, unusable from a fork) were replaced by `.github/workfl
 ### Phase 6 — Installer updates — DONE (code) / pending payload metadata
 `installer/IISAdministrationBundle/iisadministration.wxs` now requires .NET Runtime ≥ 10.0 and the
 v10.0 ASP.NET Core shared framework, downloading 10.0.8 from the official
-`builds.dotnet.microsoft.com` URLs; product version bumped to 7.0. **Remaining (Windows-only):**
+`builds.dotnet.microsoft.com` URLs; product version bumped to 7.0. The MSI file manifest
+(`installer/IISAdministrationSetup/files.wxs`) was reconciled against the actual net10.0 publish
+closure: stale entries removed (RollingFile sink, net6.0 runtime path, jQuery 3.2.0) and newly
+required files added (Microsoft.IdentityModel.Abstractions, EventLog messages DLL, 19 new
+reference assemblies for Razor runtime compilation). **Remaining (Windows-only):**
 regenerate the two `<RemotePayload>` blocks (SHA1/size/cert) with `heat.exe payload <exe>` against
 the real 10.0.8 executables — marked with TODO comments in the file.
 

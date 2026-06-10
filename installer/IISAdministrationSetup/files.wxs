@@ -92,8 +92,8 @@
       <Component Id="C_Serilog.Sinks.File.dll" Guid="cb02e013-acec-4a85-9c0d-af63debb64cd" Win64="$(var.IsWin64)">
         <File Id="Serilog.Sinks.File.dll" Source="$(var.APIDir)\Serilog.Sinks.File.dll" />
       </Component>
-      <Component Id="C_Serilog.Sinks.RollingFile.dll" Guid="63d5d0c9-b79b-4259-aa3d-a0a2cd05800b" Win64="$(var.IsWin64)">
-        <File Id="Serilog.Sinks.RollingFile.dll" Source="$(var.APIDir)\Serilog.Sinks.RollingFile.dll" />
+      <Component Id="C_Microsoft.IdentityModel.Abstractions.dll" Guid="a0cb19b5-77f7-4b3c-b1fd-be79dd06a08a" Win64="$(var.IsWin64)">
+        <File Id="Microsoft.IdentityModel.Abstractions.dll" Source="$(var.APIDir)\Microsoft.IdentityModel.Abstractions.dll" />
       </Component>
       <Component Id="C_System.IdentityModel.Tokens.Jwt.dll" Guid="36e521bf-65d7-4e61-a7bf-33d8e85211d3" Win64="$(var.IsWin64)">
         <File Id="System.IdentityModel.Tokens.Jwt.dll" Source="$(var.APIDir)\System.IdentityModel.Tokens.Jwt.dll" />
@@ -112,8 +112,11 @@
 
   <Fragment>
     <ComponentGroup Id="WinRuntimesLib_Collection">
-      <Component Id="C_NetStandard60_System.ServiceProcess.ServiceController.dll" Guid="A3EF6C12-347B-44FF-A7BD-8C366FBFE004" Directory="Runtimes_Win_Lib_Net60" Win64="$(var.IsWin64)">
-        <File Id="NetStandard60_System.ServiceProcess.ServiceController.dll" KeyPath="yes" Source="$(var.APIDir)\runtimes\win\lib\net6.0\System.ServiceProcess.ServiceController.dll" />
+      <Component Id="C_Net100_System.ServiceProcess.ServiceController.dll" Guid="A3EF6C12-347B-44FF-A7BD-8C366FBFE004" Directory="Runtimes_Win_Lib_Net100" Win64="$(var.IsWin64)">
+        <File Id="Net100_System.ServiceProcess.ServiceController.dll" KeyPath="yes" Source="$(var.APIDir)\runtimes\win\lib\net10.0\System.ServiceProcess.ServiceController.dll" />
+      </Component>
+      <Component Id="C_Net100_System.Diagnostics.EventLog.Messages.dll" Guid="a6fad5ca-5974-474c-ad17-ae0214b8dcd5" Directory="Runtimes_Win_Lib_Net100" Win64="$(var.IsWin64)">
+        <File Id="Net100_System.Diagnostics.EventLog.Messages.dll" Source="$(var.APIDir)\runtimes\win\lib\net10.0\System.Diagnostics.EventLog.Messages.dll" />
       </Component>
       <!-- Reference files for Microsoft.Web.Administration.dll -->
       <Component Id="C_PrevMicrosoft.Win32.Primitives.dll" Guid="2d6cad3e-5d1d-40e2-929c-02e9534f5053" Directory="PRTDirNet46"  Win64="$(var.IsWin64)">
@@ -282,6 +285,63 @@
 
   <Fragment>
     <ComponentGroup Id="Refs_Collection" Directory="RefsDir">
+      <Component Id="C_Refs_Microsoft.AspNetCore.Authentication.BearerToken.dll" Guid="f9dea5e1-a2be-4bfa-a225-b447957604a0" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.AspNetCore.Authentication.BearerToken.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.Authentication.BearerToken.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.AspNetCore.Components.Endpoints.dll" Guid="57c32366-f737-4607-a8d1-3f7748a1ffdc" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.AspNetCore.Components.Endpoints.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.Components.Endpoints.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.AspNetCore.OutputCaching.dll" Guid="c776e304-da96-4488-9a1e-25a4350a0d9e" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.AspNetCore.OutputCaching.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.OutputCaching.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.AspNetCore.RateLimiting.dll" Guid="f07245ce-0ab3-470b-8b35-4c62daeab443" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.AspNetCore.RateLimiting.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.RateLimiting.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.AspNetCore.RequestDecompression.dll" Guid="f6e369a6-9436-47d0-9c4c-514880a3afde" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.AspNetCore.RequestDecompression.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.RequestDecompression.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll" Guid="dbfa66e8-f120-4365-9f3d-faf176457009" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.AspNetCore.StaticAssets.dll" Guid="6a37e08a-8c1f-411c-846c-75091fe84d1d" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.AspNetCore.StaticAssets.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.StaticAssets.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.Extensions.Diagnostics.Abstractions.dll" Guid="5ec4b9f4-61eb-4e6e-b2a1-32651d08f74a" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.Extensions.Diagnostics.Abstractions.dll" Source="$(var.APIDir)\refs\Microsoft.Extensions.Diagnostics.Abstractions.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.Extensions.Diagnostics.dll" Guid="39790edd-a51c-47b1-bb3c-528871bf2a0a" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.Extensions.Diagnostics.dll" Source="$(var.APIDir)\refs\Microsoft.Extensions.Diagnostics.dll" />
+      </Component>
+      <Component Id="C_Refs_Microsoft.Extensions.Validation.dll" Guid="7001ee1d-ebe9-4dba-b993-d99da965fd39" Win64="$(var.IsWin64)">
+        <File Id="Refs_Microsoft.Extensions.Validation.dll" Source="$(var.APIDir)\refs\Microsoft.Extensions.Validation.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Formats.Cbor.dll" Guid="9fa951fb-0ec4-4f23-bb5d-2b1e2aa83420" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Formats.Cbor.dll" Source="$(var.APIDir)\refs\System.Formats.Cbor.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Formats.Tar.dll" Guid="1e8e4034-6a7d-48d8-bcba-3fe28ddd261e" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Formats.Tar.dll" Source="$(var.APIDir)\refs\System.Formats.Tar.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Linq.AsyncEnumerable.dll" Guid="96e9086a-0dff-41cd-96d2-baeaa27bbd09" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Linq.AsyncEnumerable.dll" Source="$(var.APIDir)\refs\System.Linq.AsyncEnumerable.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Net.Quic.dll" Guid="33f9162f-f0d2-4cd3-9b95-23e73c0c00cb" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Net.Quic.dll" Source="$(var.APIDir)\refs\System.Net.Quic.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Net.ServerSentEvents.dll" Guid="bab851df-1ea7-48b7-bcca-782975189147" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Net.ServerSentEvents.dll" Source="$(var.APIDir)\refs\System.Net.ServerSentEvents.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Runtime.InteropServices.JavaScript.dll" Guid="f75ab563-321b-42b7-96e3-2c30d3d3625f" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Runtime.InteropServices.JavaScript.dll" Source="$(var.APIDir)\refs\System.Runtime.InteropServices.JavaScript.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Security.Cryptography.dll" Guid="6ef1adb9-aecd-4989-808d-4182cd87373a" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Security.Cryptography.dll" Source="$(var.APIDir)\refs\System.Security.Cryptography.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Threading.AccessControl.dll" Guid="9e692f6a-fd2c-49d0-960f-e56a820423d1" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Threading.AccessControl.dll" Source="$(var.APIDir)\refs\System.Threading.AccessControl.dll" />
+      </Component>
+      <Component Id="C_Refs_System.Threading.RateLimiting.dll" Guid="1de1e85f-0971-4b6b-9375-80d7c8319dd9" Win64="$(var.IsWin64)">
+        <File Id="Refs_System.Threading.RateLimiting.dll" Source="$(var.APIDir)\refs\System.Threading.RateLimiting.dll" />
+      </Component>
       <Component Id="C_Refs_Microsoft.AspNetCore.Antiforgery.dll" Guid="ee807272-045f-4190-86ce-b04d163c5ea5" Win64="$(var.IsWin64)">
         <File Id="Refs_Microsoft.AspNetCore.Antiforgery.dll" Source="$(var.APIDir)\refs\Microsoft.AspNetCore.Antiforgery.dll" />
       </Component>
@@ -1283,8 +1343,8 @@
       <Component Id="C_main.js" Guid="6092300E-6CF4-49E5-83E0-9CB16062D861" Directory="wwwJSDir" Win64="$(var.IsWin64)">
         <File Id="main.js" Source="$(var.APIDir)\wwwroot\js\main.js" />
       </Component>
-      <Component Id="C_jquery_min.js" Guid="431f482c-d320-4744-b96c-31168cd33009" Directory="wwwjquery320Dir" Win64="$(var.IsWin64)">
-        <File Id="jquery.min.js" Source="$(var.APIDir)\wwwroot\lib\jquery-3.2.0.min\jquery.min.js" />
+      <Component Id="C_jquery_min.js" Guid="431f482c-d320-4744-b96c-31168cd33009" Directory="wwwjquery371Dir" Win64="$(var.IsWin64)">
+        <File Id="jquery.min.js" Source="$(var.APIDir)\wwwroot\lib\jquery-3.7.1.min\jquery.min.js" />
       </Component>
     </ComponentGroup>
   </Fragment>
