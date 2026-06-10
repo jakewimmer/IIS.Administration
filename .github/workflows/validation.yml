@@ -117,6 +117,8 @@ jobs:
           $bytes = [byte[]]::new(18)
           [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
           $password = [Convert]::ToBase64String($bytes) + '!Aa1'
+          Write-Host "::add-mask::$password"
+          "IISADMINCI_PW=$password" >> $env:GITHUB_ENV
           net user iisadminci $password /add /y | Out-Null
           Add-LocalGroupMember -Group 'IIS Administration API Owners' -Member iisadminci
           ./scripts/ci/Invoke-ValidationSmoke.ps1 -UserName iisadminci -Password $password
@@ -126,28 +128,19 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          Write-Host '=== Final probe (raw response) ==='
+          Write-Host '=== Final probe with CI account credentials ==='
           try {
-            $r = Invoke-WebRequest -Uri 'https://localhost:55539/security/api-keys' -UseDefaultCredentials `
-                                   -SkipCertificateCheck -SkipHttpErrorCheck
-            Write-Host "HTTP $($r.StatusCode)"
-            $r.Headers.GetEnumerator() | ForEach-Object { Write-Host "  $($_.Key): $($_.Value -join ', ')" }
-            $body = [string]$r.Content
-            if ($body) { Write-Host $body.Substring(0, [Math]::Min(800, $body.Length)) }
+            $handler = [System.Net.Http.HttpClientHandler]::new()
+            $handler.Credentials = [System.Net.NetworkCredential]::new('iisadminci', $env:IISADMINCI_PW)
+            $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
+            $client = [System.Net.Http.HttpClient]::new($handler)
+            $r = $client.GetAsync('https://localhost:55539/security/api-keys').GetAwaiter().GetResult()
+            Write-Host "HTTP $([int]$r.StatusCode)"
+            $body = $r.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+            if ($body) { Write-Host $body.Substring(0, [Math]::Min(500, $body.Length)) }
           } catch {
             Write-Host "Final probe failed: $($_.Exception.Message)"
           }
-          Write-Host '=== curl SSPI Negotiate handshake (verbose) ==='
-          cmd /c "curl.exe -k --negotiate -u : -v https://localhost:55539/security/api-keys -o NUL 2>&1" |
-            Select-String -Pattern '^[<>*]' | Select-Object -First 60 | ForEach-Object { Write-Host $_.Line }
-          Write-Host '=== curl SSPI NTLM handshake (verbose) ==='
-          cmd /c "curl.exe -k --ntlm -u : -v https://localhost:55539/security/api-keys -o NUL 2>&1" |
-            Select-String -Pattern '^[<>*]' | Select-Object -First 60 | ForEach-Object { Write-Host $_.Line }
-          Write-Host '=== NTLM / LSA policy ==='
-          Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -ErrorAction SilentlyContinue |
-            Format-List LmCompatibilityLevel, RestrictAnonymous, LimitBlankPasswordUse
-          Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ErrorAction SilentlyContinue |
-            Format-List RestrictSendingNTLMTraffic, RestrictReceivingNTLMTraffic, NtlmMinClientSec, NtlmMinServerSec
           Write-Host '=== Service status ==='
           Get-Service -Name 'Microsoft IIS Administration' -ErrorAction SilentlyContinue | Format-Table Name, Status -AutoSize
           Write-Host '=== Listeners on 55539 ==='
