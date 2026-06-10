@@ -86,16 +86,16 @@ upstreaming PRs). The workflow:
 - **ubuntu-latest:** `dotnet build` of `Microsoft.IIS.Administration.CrossPlatform.slnf` (all
   projects except the legacy `Microsoft.Web.Administration.Refs` shim) + unit tests.
 
-### Phase 6 — Installer updates — DONE (code) / pending payload metadata
+### Phase 6 — Installer updates — DONE
 `installer/IISAdministrationBundle/iisadministration.wxs` now requires .NET Runtime ≥ 10.0 and the
 v10.0 ASP.NET Core shared framework, downloading 10.0.8 from the official
 `builds.dotnet.microsoft.com` URLs; product version bumped to 7.0. The MSI file manifest
 (`installer/IISAdministrationSetup/files.wxs`) was reconciled against the actual net10.0 publish
 closure: stale entries removed (RollingFile sink, net6.0 runtime path, jQuery 3.2.0) and newly
 required files added (Microsoft.IdentityModel.Abstractions, EventLog messages DLL, 19 new
-reference assemblies for Razor runtime compilation). **Remaining (Windows-only):**
-regenerate the two `<RemotePayload>` blocks (SHA1/size/cert) with `heat.exe payload <exe>` against
-the real 10.0.8 executables — marked with TODO comments in the file.
+reference assemblies for Razor runtime compilation). The two `<RemotePayload>` blocks carry
+heat.exe-generated metadata for the real 10.0.8 executables, and the `installer-payload-metadata`
+CI job re-verifies them on every run, failing with corrected XML if they ever drift.
 
 ### Phase 7 — Windows runtime validation — AUTOMATED (`.github/workflows/validation.yml`)
 Runs on a `windows-2025` / `windows-2022` matrix (the supported-OS spread available on hosted
