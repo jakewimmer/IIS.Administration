@@ -115,9 +115,6 @@
       <Component Id="C_Net100_System.ServiceProcess.ServiceController.dll" Guid="A3EF6C12-347B-44FF-A7BD-8C366FBFE004" Directory="Runtimes_Win_Lib_Net100" Win64="$(var.IsWin64)">
         <File Id="Net100_System.ServiceProcess.ServiceController.dll" KeyPath="yes" Source="$(var.APIDir)\runtimes\win\lib\net10.0\System.ServiceProcess.ServiceController.dll" />
       </Component>
-      <Component Id="C_Net100_System.Diagnostics.EventLog.Messages.dll" Guid="a6fad5ca-5974-474c-ad17-ae0214b8dcd5" Directory="Runtimes_Win_Lib_Net100" Win64="$(var.IsWin64)">
-        <File Id="Net100_System.Diagnostics.EventLog.Messages.dll" Source="$(var.APIDir)\runtimes\win\lib\net10.0\System.Diagnostics.EventLog.Messages.dll" />
-      </Component>
       <!-- Reference files for Microsoft.Web.Administration.dll -->
       <Component Id="C_PrevMicrosoft.Win32.Primitives.dll" Guid="2d6cad3e-5d1d-40e2-929c-02e9534f5053" Directory="PRTDirNet46"  Win64="$(var.IsWin64)">
         <File Id="PrevMicrosoft.Win32.Primitives.dll" Source="$(var.APIDir)\plugins\ms.web.admin.refs\Microsoft.Win32.Primitives.dll" />
