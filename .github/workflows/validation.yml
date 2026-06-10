@@ -118,12 +118,23 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
+          Write-Host '=== Final probe (raw response) ==='
+          try {
+            $r = Invoke-WebRequest -Uri 'https://localhost:55539/security/api-keys' -UseDefaultCredentials `
+                                   -SkipCertificateCheck -SkipHttpErrorCheck
+            Write-Host "HTTP $($r.StatusCode)"
+            $r.Headers.GetEnumerator() | ForEach-Object { Write-Host "  $($_.Key): $($_.Value -join ', ')" }
+            $body = [string]$r.Content
+            if ($body) { Write-Host $body.Substring(0, [Math]::Min(800, $body.Length)) }
+          } catch {
+            Write-Host "Final probe failed: $($_.Exception.Message)"
+          }
           Write-Host '=== Service status ==='
           Get-Service -Name 'Microsoft IIS Administration' -ErrorAction SilentlyContinue | Format-Table Name, Status -AutoSize
           Write-Host '=== Listeners on 55539 ==='
           netstat -ano | Select-String 55539
-          Write-Host '=== HTTP.sys SSL bindings ==='
-          netsh http show sslcert
+          Write-Host '=== HTTP.sys SSL binding for 55539 ==='
+          netsh http show sslcert | Select-String -Pattern '55539' -Context 1, 6
           Write-Host '=== Application event log (IIS Administration API) ==='
           Get-WinEvent -LogName Application -MaxEvents 500 -ErrorAction SilentlyContinue |
             Where-Object { $_.ProviderName -like '*IIS Administration*' } |
