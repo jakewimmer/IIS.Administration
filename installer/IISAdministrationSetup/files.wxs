@@ -23,8 +23,8 @@
       <Component Id="C_Microsoft.AspNetCore.Authentication.JwtBearer.dll" Guid="4c1c3ece-17b6-465f-a1e6-5e03b224fca8" Win64="$(var.IsWin64)">
         <File Id="Microsoft.AspNetCore.Authentication.JwtBearer.dll" Source="$(var.APIDir)\Microsoft.AspNetCore.Authentication.JwtBearer.dll" />
       </Component>
-      <Component Id="C_Microsoft.AspNetCore.Hosting.WindowsServices.dll" Guid="0426cffb-9fda-482d-aa9a-3dda59515114" Win64="$(var.IsWin64)">
-        <File Id="Microsoft.AspNetCore.Hosting.WindowsServices.dll" Source="$(var.APIDir)\Microsoft.AspNetCore.Hosting.WindowsServices.dll" />
+      <Component Id="C_Microsoft.Extensions.Hosting.WindowsServices.dll" Guid="0426cffb-9fda-482d-aa9a-3dda59515114" Win64="$(var.IsWin64)">
+        <File Id="Microsoft.Extensions.Hosting.WindowsServices.dll" Source="$(var.APIDir)\Microsoft.Extensions.Hosting.WindowsServices.dll" />
       </Component>
       <Component Id="C_Microsoft.AspNetCore.JsonPatch.dll" Guid="7cfdfc9b-52f6-44c2-a6b7-1d26d3f80af5" Win64="$(var.IsWin64)">
         <File Id="Microsoft.AspNetCore.JsonPatch.dll" Source="$(var.APIDir)\Microsoft.AspNetCore.JsonPatch.dll" />
