@@ -106,8 +106,8 @@ $keyId = $null
 Step "Create never-expiring access key via Windows auth + XSRF" {
     $xsrf = Get-XsrfToken
 
-    # No expires_on -> the key never expires
-    $content = [System.Net.Http.StringContent]::new('{"purpose":"CI validation"}', [System.Text.Encoding]::UTF8, 'application/json')
+    # expires_on must be present; an empty string means the key never expires
+    $content = [System.Net.Http.StringContent]::new('{"purpose":"CI validation","expires_on":""}', [System.Text.Encoding]::UTF8, 'application/json')
     $content.Headers.Add('XSRF-TOKEN', $xsrf)
     $r = $winClient.PostAsync("$ServerUrl/security/api-keys", $content).GetAwaiter().GetResult()
     $body = $r.Content.ReadAsStringAsync().GetAwaiter().GetResult()
