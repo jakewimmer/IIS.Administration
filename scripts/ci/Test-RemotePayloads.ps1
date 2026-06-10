@@ -34,11 +34,17 @@ foreach ($pkg in $packages) {
     & $HeatExe payload $exePath -o $genWxs | Out-Null
     if ($LASTEXITCODE -ne 0) { Write-Error "heat.exe failed for $name" }
 
+    # Locate the harvested payload element regardless of heat's exact output shape
     [xml]$gen = Get-Content $genWxs
-    $generated = $gen.Wix.Fragment.PayloadGroup.RemotePayload
+    $generated = $gen.SelectSingleNode('//*[@Hash]')
+    if (-not $generated) {
+        Write-Host "    heat.exe output did not contain a payload element with a Hash attribute:"
+        Get-Content $genWxs | ForEach-Object { Write-Host "    $_" }
+        Write-Error "Unrecognized heat.exe output for $name"
+    }
 
     foreach ($attr in $compared) {
-        $expected = $generated.$attr
+        $expected = $generated.GetAttribute($attr)
         $actual = $pkg.RemotePayload.$attr
         if ($expected -ne $actual) {
             Write-Host "    DRIFT ${attr}: committed '$actual' != actual '$expected'"
