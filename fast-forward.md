@@ -18,16 +18,13 @@ packages are at 10.0.8 (2026-05-12) rather than 10.0.9 (published 2026-06-09).
 | Target framework | net6.0 (EOL Nov 2024) | **net10.0** | `build/version.props` |
 | Product version | 6.0.0 | 7.0.0 | App + installer (`installer/shared/common.wxi`) |
 | Microsoft.AspNetCore.Authentication.JwtBearer | 6.0.1 | 10.0.8 | 10.0.9 excluded by cooldown |
-| Microsoft.AspNetCore.Hosting.WindowsServices | 6.0.1 | 10.0.8 | |
+| Microsoft.AspNetCore.Hosting.WindowsServices | 6.0.1 | **replaced by Microsoft.Extensions.Hosting.WindowsServices 10.0.8** | Generic-host service lifetime; the legacy IWebHost RunAsService package is no longer used |
 | Microsoft.AspNetCore.Mvc.NewtonsoftJson | 6.0.1 | 10.0.8 | Newtonsoft.Json resolves to 13.x |
 | Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation | 6.0.3 | 10.0.8 | |
 | Serilog | 2.11.0 | 4.3.1 | |
 | Serilog.Extensions.Logging | 3.1.0 | 10.0.0 | |
 | Serilog.Sinks.RollingFile (deprecated) | 3.3.0 | **Serilog.Sinks.File 7.0.0** | `{Date}` file names translated by `RollingLogFile` |
-| Microsoft.Web.Administration | 11.1.0 | 11.1.0 | Latest available; vulnerable transitives pinned (see below) |
-| System.Net.Http (transitive pin) | 4.1.0 (vulnerable) | 4.3.4 | GHSA-7jgj-8wvc-jh57 |
-| System.Security.Cryptography.X509Certificates (transitive pin) | 4.1.0 (vulnerable) | 4.3.2 | GHSA-7mfr-774f-w5r9 |
-| System.Security.Principal.Windows (transitive pin) | 4.0.0 | 4.7.0 | Resolves NU1605 from the pins above |
+| Microsoft.Web.Administration | 11.1.0 | 11.1.0 | Latest available; its vulnerable 4.x transitives are pruned from the graph by the .NET 10 SDK (no pins needed) |
 | jQuery (vendored) | 3.2.0 (CVE-2019-11358, CVE-2020-11022/11023) | 3.7.1 | SRI hashes regenerated; verified against the official 3.7.1 sha384 |
 | xunit / runner / Test SDK | 2.4.1 / 2.4.3 / 17.0.0 | 2.9.3 / 3.1.5 / 18.6.0 | |
 | dotnet runtime bundled by installer | 6.0.1 | 10.0.8 | URLs updated; RemotePayload regen pending (Phase 7) |
@@ -58,6 +55,15 @@ whole solution (38 SDK-style projects, app + 30 plugins + tests) compiles clean 
 - **Build scripts**: the PowerShell `Copy-Configs.ps1` build hook was replaced with an equivalent
   cross-platform MSBuild target; the publish-time jQuery-integrity rewrite is now Windows-only
   conditioned.
+- **Deprecation cleanup (CI annotations, zero warnings remain):** hosting migrated from the
+  obsolete `WebHostBuilder`/`IWebHost` + `RunAsService` model to the generic host with
+  `UseWindowsService` (ASPDEPR004/008; the HTTPS-only check now validates configured urls up
+  front); `X509CertificateLoader` replaces the obsolete `X509Certificate2` file constructors
+  (SYSLIB0057); `Rfc2898DeriveBytes.Pbkdf2` replaces the obsolete constructor with identical
+  SHA1/iterations/size so stored key hashes remain valid (SYSLIB0060); the dead
+  `AssemblyName.ProcessorArchitecture` plugin check was removed (SYSLIB0037); response header
+  writes use the indexer instead of `Add` (ASP0019, 9 sites); workflows opt into Node 24 for
+  `setup-msbuild` ahead of the June 16, 2026 forced migration.
 
 ### Phase 3 — Upstream bug fixes — DONE
 - **#331 / #329 (auth broken for "never expires" tokens and non-UTC servers):** `SecurityToken`

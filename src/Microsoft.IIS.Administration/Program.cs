@@ -3,12 +3,11 @@
 
 
 namespace Microsoft.IIS.Administration {
-    using AspNetCore.Builder;
     using AspNetCore.Hosting;
-    using Microsoft.AspNetCore.Hosting.WindowsServices;
     using Microsoft.AspNetCore.Server.HttpSys;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Logging.EventLog;
     using Serilog;
@@ -17,6 +16,8 @@ namespace Microsoft.IIS.Administration {
 
     public class Program {
         public const string EventSourceName = "Microsoft IIS Administration API";
+
+        private const string DefaultUrl = "https://*:55539";
 
         public static void Main(string[] args) {
             try
@@ -27,20 +28,35 @@ namespace Microsoft.IIS.Administration {
                 IConfiguration config = configHelper.Build();
 
                 //
+                // Require HTTPS for every configured address
+                RequireHttps(config);
+
+                //
                 // Initialize runAsAService local variable
                 string serviceName = config.GetValue<string>("serviceName")?.Trim();
                 bool runAsAService = !string.IsNullOrEmpty(serviceName);
 
                 //
                 // Host
-                using (var host = new WebHostBuilder()
+                var hostBuilder = new HostBuilder();
+
+                if (runAsAService)
+                {
+                    //
+                    // Sets the Windows service lifetime; must precede UseContentRoot, which it would
+                    // otherwise override with the process base directory
+                    _ = hostBuilder.UseWindowsService(o => o.ServiceName = serviceName);
+                    Log.Information($"Running as service: {serviceName}");
+                }
+
+                _ = hostBuilder
                     .UseContentRoot(configHelper.RootPath)
                     .ConfigureLogging((hostingContext, logging) => {
                         _ = logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
 
-                    //
-                    // Console log is not available in running as a Service
-                    if (!runAsAService)
+                        //
+                        // Console log is not available in running as a Service
+                        if (!runAsAService)
                         {
                             _ = logging.AddConsole();
                         }
@@ -51,37 +67,27 @@ namespace Microsoft.IIS.Administration {
                             SourceName = EventSourceName
                         });
                     })
-                    .UseUrls("https://*:55539") // Config can override it. Use "urls":"https://*:55539"
-                    .UseConfiguration(config)
-                    .ConfigureServices(s => s.AddSingleton(config)) // Configuration Service
-                    .UseStartup<Startup>()
-                    .UseHttpSys(o => {
-                    //
-                    // Kernel mode Windows Authentication
-                    o.Authentication.Schemes = AuthenticationSchemes.Negotiate | AuthenticationSchemes.NTLM;
+                    .ConfigureWebHost(webHost => {
+                        _ = webHost
+                            .UseUrls(DefaultUrl) // Config can override it. Use "urls":"https://*:55539"
+                            .UseConfiguration(config)
+                            .ConfigureServices(s => s.AddSingleton(config)) // Configuration Service
+                            .UseStartup<Startup>()
+                            .UseHttpSys(o => {
+                                //
+                                // Kernel mode Windows Authentication
+                                o.Authentication.Schemes = AuthenticationSchemes.Negotiate | AuthenticationSchemes.NTLM;
 
-                    //
-                    // Need anonymous to allow CORS preflight requests
-                    // app.UseWindowsAuthentication ensures (if needed) the request is authenticated to proceed
-                    o.Authentication.AllowAnonymous = true;
-                    })
-                    .Build()
-                    .UseHttps())
+                                //
+                                // Need anonymous to allow CORS preflight requests
+                                // app.UseWindowsAuthentication ensures (if needed) the request is authenticated to proceed
+                                o.Authentication.AllowAnonymous = true;
+                            });
+                    });
+
+                using (IHost host = hostBuilder.Build())
                 {
-
-                    if (runAsAService)
-                    {
-                        //
-                        // Run as a Service
-                        Log.Information($"Running as service: {serviceName}");
-                        host.RunAsService();
-                    }
-                    else
-                    {
-                        //
-                        // Run interactive
-                        host.Run();
-                    }
+                    host.Run();
                 }
             }
             catch (Exception ex)
@@ -92,6 +98,16 @@ namespace Microsoft.IIS.Administration {
                     shutdownLog.WriteEntry($"Microsoft IIS Administration API has shutdown unexpectively because the error: {ex.ToString()}", EventLogEntryType.Error);
                 }
                 throw;
+            }
+        }
+
+        private static void RequireHttps(IConfiguration config) {
+            string urls = config.GetValue<string>("urls") ?? DefaultUrl;
+
+            foreach (var address in urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) {
+                if (!address.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
+                    throw new ArgumentException($"{address} - HTTPS is required");
+                }
             }
         }
     }
