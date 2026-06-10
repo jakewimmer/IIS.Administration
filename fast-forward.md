@@ -97,12 +97,25 @@ reference assemblies for Razor runtime compilation). **Remaining (Windows-only):
 regenerate the two `<RemotePayload>` blocks (SHA1/size/cert) with `heat.exe payload <exe>` against
 the real 10.0.8 executables — marked with TODO comments in the file.
 
-### Phase 7 — Windows runtime validation — TODO (requires a Windows + IIS machine)
-1. Regenerate installer RemotePayload metadata (above) and build the bundle.
-2. Fresh install on Windows Server, run the integration suite (`test/Microsoft.IIS.Administration.Tests`).
-3. Manually verify: HTTP.sys binding + Windows auth, access-key UI, never-expiring token on a
-   UTC-negative-offset machine (#329 repro), concurrent app-pool PATCH returns 409 not 500 (#324 repro).
-4. Validate plugin loading, including the `plugins/ms.web.admin.refs` fallback (see below).
+### Phase 7 — Windows runtime validation — AUTOMATED (`.github/workflows/validation.yml`)
+Runs on a `windows-2025` / `windows-2022` matrix (the supported-OS spread available on hosted
+runners) plus a payload-metadata job:
+1. **RemotePayload verification:** downloads the bundle's runtime installers, regenerates payload
+   metadata with `heat.exe`, and fails with the correct XML in the job summary if the committed
+   values drift.
+2. **Real install:** minimal IIS (`Web-Server` role only), machine-wide .NET 10 runtimes (the
+   service runs as LocalSystem and cannot see user-scoped installs), silent MSI install, service
+   startup under HTTP.sys.
+3. **Regression smoke (`scripts/ci/Invoke-ValidationSmoke.ps1`):** runner timezone is set to
+   UTC-10 before install, then a never-expiring access key is created and used (#329/#331 repro),
+   concurrent app-pool PATCHes must return only 200/409 (#324 repro), webserver endpoints confirm
+   plugin loading (including the `ms.web.admin.refs` fallback), and the access-keys UI must render.
+4. **Integration suite:** `test/Microsoft.IIS.Administration.Tests` runs informationally
+   (continue-on-error) with TRX results uploaded, until its behavior on hosted runners is triaged.
+
+Hosted runners cannot cover: older Windows Server versions (README claims 2008 R2+),
+domain-joined Windows-auth scenarios, or in-place upgrades from 6.0.0 — those still warrant a
+one-time manual pass on representative VMs before shipping a release.
 
 ### Phase 8 — Release — TODO
 Tag v7.0.0 from the fork once Phase 7 passes; include a changelog summarizing this document.
