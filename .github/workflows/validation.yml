@@ -129,6 +129,17 @@ jobs:
           } catch {
             Write-Host "Final probe failed: $($_.Exception.Message)"
           }
+          Write-Host '=== curl SSPI Negotiate handshake (verbose) ==='
+          cmd /c "curl.exe -k --negotiate -u : -v https://localhost:55539/security/api-keys -o NUL 2>&1" |
+            Select-String -Pattern '^[<>*]' | Select-Object -First 60 | ForEach-Object { Write-Host $_.Line }
+          Write-Host '=== curl SSPI NTLM handshake (verbose) ==='
+          cmd /c "curl.exe -k --ntlm -u : -v https://localhost:55539/security/api-keys -o NUL 2>&1" |
+            Select-String -Pattern '^[<>*]' | Select-Object -First 60 | ForEach-Object { Write-Host $_.Line }
+          Write-Host '=== NTLM / LSA policy ==='
+          Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -ErrorAction SilentlyContinue |
+            Format-List LmCompatibilityLevel, RestrictAnonymous, LimitBlankPasswordUse
+          Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' -ErrorAction SilentlyContinue |
+            Format-List RestrictSendingNTLMTraffic, RestrictReceivingNTLMTraffic, NtlmMinClientSec, NtlmMinServerSec
           Write-Host '=== Service status ==='
           Get-Service -Name 'Microsoft IIS Administration' -ErrorAction SilentlyContinue | Format-Table Name, Status -AutoSize
           Write-Host '=== Listeners on 55539 ==='
