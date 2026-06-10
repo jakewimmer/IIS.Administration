@@ -114,8 +114,9 @@ jobs:
       - name: Runtime smoke validation (issues 329/331/324, plugins, UI)
         shell: pwsh
         run: |
-          Add-Type -AssemblyName System.Web
-          $password = [System.Web.Security.Membership]::GeneratePassword(24, 6)
+          $bytes = [byte[]]::new(18)
+          [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+          $password = [Convert]::ToBase64String($bytes) + '!Aa1'
           net user iisadminci $password /add /y | Out-Null
           Add-LocalGroupMember -Group 'IIS Administration API Owners' -Member iisadminci
           ./scripts/ci/Invoke-ValidationSmoke.ps1 -UserName iisadminci -Password $password
