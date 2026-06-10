@@ -90,7 +90,8 @@ jobs:
       - name: Install MSI silently
         shell: pwsh
         run: |
-          $msi = 'installer/IISAdministrationSetup/bin/x64/Release/en-us/IISAdministrationSetup.msi'
+          # msiexec rejects forward-slash paths with exit code 1619
+          $msi = Convert-Path 'installer/IISAdministrationSetup/bin/x64/Release/en-us/IISAdministrationSetup.msi'
           $log = Join-Path $env:RUNNER_TEMP 'msi-install.log'
           $p = Start-Process msiexec -ArgumentList '/i', $msi, '/qn', '/norestart', 'VSEXTUI=1', 'DEFAULT_CORS=true', '/l*v', $log -Wait -PassThru
           if ($p.ExitCode -notin 0, 3010) {
