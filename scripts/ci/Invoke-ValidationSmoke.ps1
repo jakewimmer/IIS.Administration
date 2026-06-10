@@ -34,17 +34,29 @@ function Step($name, [scriptblock] $body) {
 $session = $null
 $deadline = (Get-Date).AddSeconds($StartupTimeoutSeconds)
 $alive = $false
+$probeErrors = @{}
 while ((Get-Date) -lt $deadline) {
     try {
         $r = Invoke-WebRequest -Uri "$ServerUrl/security/api-keys" -UseDefaultCredentials -SkipCertificateCheck `
                                -SessionVariable session -Headers @{ Accept = 'application/hal+json' }
         if ($r.StatusCode -eq 200) { $alive = $true; break }
     } catch {
+        $reason = if ($_.Exception.Response) {
+            "HTTP $([int]$_.Exception.Response.StatusCode) from $($_.Exception.Response.RequestMessage.RequestUri)"
+        } else {
+            $_.Exception.Message
+        }
+        if (-not $probeErrors.ContainsKey($reason)) {
+            $probeErrors[$reason] = 0
+            Write-Host "    probe: $reason"
+        }
+        $probeErrors[$reason]++
         Start-Sleep -Seconds 3
     }
 }
 if (-not $alive) {
-    Write-Error "Service did not answer at $ServerUrl within $StartupTimeoutSeconds seconds"
+    $summary = ($probeErrors.GetEnumerator() | ForEach-Object { "$($_.Value)x $($_.Key)" }) -join '; '
+    Write-Error "Service did not answer at $ServerUrl within $StartupTimeoutSeconds seconds. Probe failures: $summary"
 }
 Write-Host "Service is up at $ServerUrl (timezone: $((Get-TimeZone).Id), UTC offset: $((Get-TimeZone).BaseUtcOffset))"
 

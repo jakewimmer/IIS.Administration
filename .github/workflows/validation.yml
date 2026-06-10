@@ -102,7 +102,9 @@ jobs:
       - name: Wait for service
         shell: pwsh
         run: |
-          $svc = Get-Service | Where-Object { $_.DisplayName -like '*IIS Administration*' }
+          # Query by exact name: enumerating all services throws on Windows Server 2025,
+          # where protected services (e.g. WaaSMedicSvc) deny SCM queries.
+          $svc = Get-Service -Name 'Microsoft IIS Administration' -ErrorAction SilentlyContinue
           if (-not $svc) { throw 'IIS Administration service not found after install' }
           $svc | Format-Table Name, DisplayName, Status -AutoSize
           if ($svc.Status -ne 'Running') { Start-Service $svc.Name; $svc.WaitForStatus('Running', '00:01:00') }
@@ -115,8 +117,9 @@ jobs:
         if: failure()
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
           Write-Host '=== Service status ==='
-          Get-Service | Where-Object { $_.DisplayName -like '*IIS Administration*' } | Format-Table Name, Status -AutoSize
+          Get-Service -Name 'Microsoft IIS Administration' -ErrorAction SilentlyContinue | Format-Table Name, Status -AutoSize
           Write-Host '=== Listeners on 55539 ==='
           netstat -ano | Select-String 55539
           Write-Host '=== HTTP.sys SSL bindings ==='
