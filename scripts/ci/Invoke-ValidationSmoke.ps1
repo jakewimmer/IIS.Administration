@@ -17,7 +17,12 @@
 param(
     [string] $ServerUrl = "https://localhost:55539",
     [int] $StartupTimeoutSeconds = 120,
-    [int] $ConcurrentPatches = 8
+    [int] $ConcurrentPatches = 8,
+    # Explicit credentials for Windows auth. Default-credential SSO falls back to an
+    # anonymous NTLM logon in GitHub-hosted runner sessions, so CI passes a dedicated
+    # local account; interactive/manual runs can omit these to use the current user.
+    [string] $UserName,
+    [string] $Password
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,7 +41,11 @@ function Step($name, [scriptblock] $body) {
 
 function New-WindowsAuthClient {
     $handler = [System.Net.Http.HttpClientHandler]::new()
-    $handler.UseDefaultCredentials = $true
+    if ($UserName) {
+        $handler.Credentials = [System.Net.NetworkCredential]::new($UserName, $Password)
+    } else {
+        $handler.UseDefaultCredentials = $true
+    }
     $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
     [System.Net.Http.HttpClient]::new($handler)
 }

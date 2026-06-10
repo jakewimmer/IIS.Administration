@@ -109,9 +109,16 @@ jobs:
           $svc | Format-Table Name, DisplayName, Status -AutoSize
           if ($svc.Status -ne 'Running') { Start-Service $svc.Name; $svc.WaitForStatus('Running', '00:01:00') }
 
+      # SSO with the runner's own session yields an anonymous NTLM logon, so validate
+      # Windows auth with a dedicated local account that is an API administrator.
       - name: Runtime smoke validation (issues 329/331/324, plugins, UI)
         shell: pwsh
-        run: ./scripts/ci/Invoke-ValidationSmoke.ps1
+        run: |
+          Add-Type -AssemblyName System.Web
+          $password = [System.Web.Security.Membership]::GeneratePassword(24, 6)
+          net user iisadminci $password /add /y | Out-Null
+          Add-LocalGroupMember -Group 'IIS Administration API Owners' -Member iisadminci
+          ./scripts/ci/Invoke-ValidationSmoke.ps1 -UserName iisadminci -Password $password
 
       - name: Diagnostics on failure
         if: failure()
