@@ -25,7 +25,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void UseTransactionManipulateSite()
+        public async System.Threading.Tasks.Task UseTransactionManipulateSite()
         {
             using (HttpClient client = ApiHttpClient.Create()) {
 
@@ -54,11 +54,11 @@ namespace Microsoft.IIS.Administration.Tests
                 req.Content = new StringContent(JsonConvert.SerializeObject(site), Encoding.UTF8, "application/json");
 
                 // Patch the test site using a transaction
-                var response = client.SendAsync(req).Result;
+                var response = await client.SendAsync(req);
 
                 Assert.True(Globals.Success(response));
 
-                site = JsonConvert.DeserializeObject<JObject>(response.Content.ReadAsStringAsync().Result);
+                site = JsonConvert.DeserializeObject<JObject>(await response.Content.ReadAsStringAsync());
 
                 // Check the value of the server auto start property of the test site after manipulating it through transaction
                 bool transactionAutoStart = site.Value<bool>("server_auto_start");
@@ -83,7 +83,7 @@ namespace Microsoft.IIS.Administration.Tests
                 req.Content = new StringContent(JsonConvert.SerializeObject(new { state = "committed"}), Encoding.UTF8, "application/json");
 
                 // Patch the transaction to commit it
-                response = client.SendAsync(req).Result;
+                response = await client.SendAsync(req);
 
                 Assert.True(Globals.Success(response));
 
@@ -110,7 +110,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void EnsureTransactionBlocks()
+        public async System.Threading.Tasks.Task EnsureTransactionBlocks()
         {
             using (HttpClient client = ApiHttpClient.Create()) {
 
@@ -128,7 +128,7 @@ namespace Microsoft.IIS.Administration.Tests
                 JObject transaction = JsonConvert.DeserializeObject<JObject>(res);
 
                 // Try to delete the site without specifying transaction
-                var response = client.DeleteAsync(Utils.Self(site)).Result;
+                var response = await client.DeleteAsync(Utils.Self(site));
 
                 // Not specifying the transaction should prevent us from deleting the site
                 Assert.True(!Globals.Success(response));
@@ -141,7 +141,7 @@ namespace Microsoft.IIS.Administration.Tests
                 req.Content = new StringContent(JsonConvert.SerializeObject(new { state = "aborted" }), Encoding.UTF8, "application/json");
 
                 // Patch the transaction to abort it
-                response = client.SendAsync(req).Result;
+                response = await client.SendAsync(req);
 
                 Assert.True(Globals.Success(response));
 

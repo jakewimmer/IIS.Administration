@@ -175,13 +175,13 @@ namespace Microsoft.IIS.Administration.Tests
                 vdir1a.PhysicalPath = vdir1aPhysicalPath;
                 vdir1b.PhysicalPath = vdir1bPhysicalPath;
 
-                Assert.Equal(WebServer.Files.FilesHelper.GetPhysicalPath(site, "/"), rootVdirPhysicalPath);
-                Assert.Equal(WebServer.Files.FilesHelper.GetPhysicalPath(site, "/abc/defg"), rootVdirPhysicalPath + @"\abc\defg");
-                Assert.Equal(WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1"), vdir1aPhysicalPath);
-                Assert.Equal(WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/abc/defg"), vdir1aPhysicalPath + @"\abc\defg");
-                Assert.Equal(WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/vdir1bc/abc/defg"), vdir1aPhysicalPath + @"\vdir1bc\abc\defg");
-                Assert.Equal(WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/vdir1b"), vdir1bPhysicalPath);
-                Assert.Equal(WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/vdir1b/abc/defg"), vdir1bPhysicalPath + @"\abc\defg");
+                Assert.Equal(rootVdirPhysicalPath, WebServer.Files.FilesHelper.GetPhysicalPath(site, "/"));
+                Assert.Equal(rootVdirPhysicalPath + @"\abc\defg", WebServer.Files.FilesHelper.GetPhysicalPath(site, "/abc/defg"));
+                Assert.Equal(vdir1aPhysicalPath, WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1"));
+                Assert.Equal(vdir1aPhysicalPath + @"\abc\defg", WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/abc/defg"));
+                Assert.Equal(vdir1aPhysicalPath + @"\vdir1bc\abc\defg", WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/vdir1bc/abc/defg"));
+                Assert.Equal(vdir1bPhysicalPath, WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/vdir1b"));
+                Assert.Equal(vdir1bPhysicalPath + @"\abc\defg", WebServer.Files.FilesHelper.GetPhysicalPath(site, "/app1/vdir1b/abc/defg"));
             }
         }
 
@@ -223,7 +223,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void CreateEditDeleteFile()
+        public async Task CreateEditDeleteFile()
         {
             using (HttpClient client = ApiHttpClient.Create())
             using (TestSiteContainer container = new TestSiteContainer(_output, client))
@@ -243,14 +243,14 @@ namespace Microsoft.IIS.Administration.Tests
 
                     // Update content of file
                     var testContent = "Microsoft.IIS.Administration.Test.Files";
-                    var res = client.PutAsync(Utils.GetLink(fileInfo, "content"), new StringContent(testContent)).Result;
+                    var res = await client.PutAsync(Utils.GetLink(fileInfo, "content"), new StringContent(testContent));
 
                     Assert.True(res.StatusCode == HttpStatusCode.OK);
 
                     // Get updated content of file
                     string result = null;
                     Assert.True(client.Get(Utils.GetLink(fileInfo, "content"), out result));
-                    Assert.True(result == testContent);
+                    Assert.Equal(testContent, result);
 
                     var downloadsHref = Utils.GetLink(fileInfo, "downloads");
 
@@ -259,7 +259,7 @@ namespace Microsoft.IIS.Administration.Tests
                     };
 
                     // Create download link for file
-                    res = client.PostAsync(downloadsHref, new StringContent(JsonConvert.SerializeObject(dl), Encoding.UTF8, "application/json")).Result;
+                    res = await client.PostAsync(downloadsHref, new StringContent(JsonConvert.SerializeObject(dl), Encoding.UTF8, "application/json"));
                     Assert.True(res.StatusCode == HttpStatusCode.Created);
 
                     IEnumerable<string> locationHeader;
@@ -268,16 +268,16 @@ namespace Microsoft.IIS.Administration.Tests
 
                     // Download file
                     Assert.True(client.Get($"{Configuration.Instance().TEST_SERVER_URL}{location}", out result));
-                    Assert.True(result == testContent);
+                    Assert.Equal(testContent, result);
 
                     // Update file with empty content
-                    res = client.PutAsync(Utils.GetLink(fileInfo, "content"), new ByteArrayContent(new byte[] { })).Result;
+                    res = await client.PutAsync(Utils.GetLink(fileInfo, "content"), new ByteArrayContent(new byte[] { }));
 
                     Assert.True(res.StatusCode == HttpStatusCode.OK);
 
                     // Assert file truncated
-                    res = client.GetAsync(Utils.GetLink(fileInfo, "content")).Result;
-                    Assert.True(res.Content.ReadAsByteArrayAsync().Result.Length == 0);
+                    res = await client.GetAsync(Utils.GetLink(fileInfo, "content"));
+                    Assert.True((await res.Content.ReadAsByteArrayAsync()).Length == 0);
                 }
                 finally {
                     Assert.True(client.Delete(Utils.Self(webFile.Value<JObject>("file_info"))));
@@ -286,7 +286,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void CopyFile()
+        public async Task CopyFile()
         {
             string copyName = "TEST_FILE_NAME_COPY.txt";
             string testContent = "Test content for copying files.";
@@ -324,13 +324,13 @@ namespace Microsoft.IIS.Administration.Tests
                     HttpResponseMessage res = null;
                     do
                     {
-                        res = client.GetAsync(Utils.Self(copyInfo)).Result;
+                        res = await client.GetAsync(Utils.Self(copyInfo));
                     } while (res.StatusCode == HttpStatusCode.OK);
 
                     var copyParent = new DirectoryInfo(physicalPath).Parent.FullName;
                     var copyPhysicalPath = Environment.ExpandEnvironmentVariables(copyInfo["file"].Value<string>("physical_path"));
 
-                    Assert.True(copyPhysicalPath.Equals(Path.Combine(copyParent, copyName), StringComparison.OrdinalIgnoreCase));
+                    Assert.Equal(Path.Combine(copyParent, copyName), copyPhysicalPath, ignoreCase: true);
 
                     var copyContent = File.ReadAllText(copyPhysicalPath);
 
@@ -351,7 +351,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void MoveDirectory()
+        public async Task MoveDirectory()
         {
             string startName = "move_dir_test";
             string destName = "move_dir_dest";
@@ -380,7 +380,7 @@ namespace Microsoft.IIS.Administration.Tests
                     // Wait for move to finish
                     HttpResponseMessage res = null;
                     while (res == null || res.StatusCode == HttpStatusCode.OK) {
-                        res = client.GetAsync(Utils.Self(moveInfo)).Result;
+                        res = await client.GetAsync(Utils.Self(moveInfo));
                         Thread.Sleep(25);
                     }
 
@@ -400,7 +400,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void CopyDirectory()
+        public async Task CopyDirectory()
         {
             string startName = "copy_dir_test";
             string destName = "copy_dir_dest";
@@ -430,7 +430,7 @@ namespace Microsoft.IIS.Administration.Tests
                     // Wait for copy to finish
                     HttpResponseMessage res = null;
                     do {
-                        res = client.GetAsync(Utils.Self(copyInfo)).Result;
+                        res = await client.GetAsync(Utils.Self(copyInfo));
                     } while (res.StatusCode == HttpStatusCode.OK);
 
                     // Don't add code between copy end and verification so we can make sure files aren't being held
@@ -454,7 +454,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void RangeUploadDownload()
+        public async Task RangeUploadDownload()
         {
             using (HttpClient client = ApiHttpClient.Create())
             using (TestSiteContainer container = new TestSiteContainer(_output, client))
@@ -485,18 +485,18 @@ namespace Microsoft.IIS.Administration.Tests
 
                         req.Content.Headers.Add("Content-Range", $"bytes {i}-{i + currentChunkSize - 1}/{totalFileSize}");
 
-                        res = client.SendAsync(req).Result;
+                        res = await client.SendAsync(req);
 
                         Assert.True(Globals.Success(res));
                     }
 
                     req = new HttpRequestMessage(HttpMethod.Get, Utils.GetLink(fileInfo, "content"));
 
-                    res = client.SendAsync(req).Result;
+                    res = await client.SendAsync(req);
 
                     Assert.True(Globals.Success(res));
 
-                    var resultBytes = res.Content.ReadAsByteArrayAsync().Result;
+                    var resultBytes = await res.Content.ReadAsByteArrayAsync();
 
                     Assert.True(resultBytes.SequenceEqual(GetFileSlice(0, totalFileSize)));
 
@@ -511,11 +511,11 @@ namespace Microsoft.IIS.Administration.Tests
 
                         req.Headers.Add("Range", $"bytes={i}-{i + currentChunkSize - 1}");
 
-                        res = client.SendAsync(req).Result;
+                        res = await client.SendAsync(req);
 
                         Assert.True(Globals.Success(res));
 
-                        resultBytes = res.Content.ReadAsByteArrayAsync().Result;
+                        resultBytes = await res.Content.ReadAsByteArrayAsync();
                         resultBytes.CopyTo(download, i);
                     }
 
@@ -528,7 +528,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void UploadMultipleFiles()
+        public async Task UploadMultipleFiles()
         {
             var mockFileNames = new List<string>();
 
@@ -559,10 +559,10 @@ namespace Microsoft.IIS.Administration.Tests
                         uploads.Add(MockUploadFile(client, fileInfo, 1024 * 1024 * 5));
                     }
 
-                    Task.WaitAll(uploads.ToArray());
+                    await Task.WhenAll(uploads);
 
                     foreach (var upload in uploads) {
-                        Assert.True(upload.Result);
+                        Assert.True(await upload);
                     }
                 }
                 finally {
@@ -577,7 +577,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void TruncateOnCompleteRange()
+        public async Task TruncateOnCompleteRange()
         {
             var size = 1024 * 1024 * 5;
             var truncateSize = size / 2;
@@ -591,13 +591,13 @@ namespace Microsoft.IIS.Administration.Tests
                 var fileInfo = Utils.FollowLink(client, webFile.Value<JObject>("file_info"), "self");
 
                 try {
-                    Assert.True(MockUploadFile(client, fileInfo, size).Result);
+                    Assert.True(await MockUploadFile(client, fileInfo, size));
 
                     fileInfo = Utils.FollowLink(client, fileInfo, "self");
 
                     Assert.True(fileInfo.Value<int>("size") == size);
 
-                    Assert.True(MockUploadFile(client, fileInfo, truncateSize).Result);
+                    Assert.True(await MockUploadFile(client, fileInfo, truncateSize));
 
                     fileInfo = Utils.FollowLink(client, fileInfo, "self");
 
@@ -666,7 +666,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void CoreFileRange()
+        public async Task CoreFileRange()
         {
             var physicalPath = Path.Combine(Configuration.Instance().TEST_ROOT_PATH, "api_file_range_test");
             if (Directory.Exists(physicalPath)) {
@@ -691,12 +691,12 @@ namespace Microsoft.IIS.Administration.Tests
                     HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Get, Utils.GetLink(folder, "files"));
                     req.Headers.Add("Range", "files=1-3");
 
-                    var res = client.SendAsync(req).Result;
+                    var res = await client.SendAsync(req);
 
                     Assert.True(res.Content.Headers.Contains("Content-Range"));
-                    Assert.True(res.Content.Headers.GetValues("Content-Range").First().Equals("1-3/6"));
+                    Assert.Equal("1-3/6", res.Content.Headers.GetValues("Content-Range").First());
 
-                    var children = JObject.Parse(res.Content.ReadAsStringAsync().Result)["files"].ToObject<IEnumerable<JObject>>();
+                    var children = JObject.Parse(await res.Content.ReadAsStringAsync())["files"].ToObject<IEnumerable<JObject>>();
                     Assert.True(children.Count() == 3);
                 }
                 finally {
@@ -706,7 +706,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void WebFileRange()
+        public async Task WebFileRange()
         {
             var physicalPath = Path.Combine(Configuration.Instance().TEST_ROOT_PATH, "web_file_range_test");
             if (Directory.Exists(physicalPath)) {
@@ -740,12 +740,12 @@ namespace Microsoft.IIS.Administration.Tests
                     HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Get, Utils.GetLink(folder, "files"));
                     req.Headers.Add("Range", "files=2-5");
 
-                    var res = client.SendAsync(req).Result;
+                    var res = await client.SendAsync(req);
 
                     Assert.True(res.Content.Headers.Contains("Content-Range"));
-                    Assert.True(res.Content.Headers.GetValues("Content-Range").First().Equals($"2-5/{fileCount}"));
+                    Assert.Equal($"2-5/{fileCount}", res.Content.Headers.GetValues("Content-Range").First());
 
-                    var children = JObject.Parse(res.Content.ReadAsStringAsync().Result)["files"].ToObject<IEnumerable<JObject>>();
+                    var children = JObject.Parse(await res.Content.ReadAsStringAsync())["files"].ToObject<IEnumerable<JObject>>();
                     Assert.True(children.Count() == 4);
                 }
                 finally {
@@ -758,7 +758,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void CreateEditDeleteLocation()
+        public async Task CreateEditDeleteLocation()
         {
             string physicalPath = Path.Combine("%temp%", Path.GetRandomFileName());
             string physicalPath2 = Path.Combine("%temp%", Path.GetRandomFileName());
@@ -796,7 +796,7 @@ namespace Microsoft.IIS.Administration.Tests
                                             .First(o => o.Value<string>("name").Equals(Path.GetFileName(physicalPath)))
                                             .Value<string>("physical_path");
                     // Sometime this is delayed
-                    Task.Delay(100).Wait();
+                    await Task.Delay(100);
                     Assert.True(Directory.Exists(expanded));
 
                     body = JObject.FromObject(new {
@@ -873,7 +873,7 @@ namespace Microsoft.IIS.Administration.Tests
             targetFileInfo = client.Patch(Utils.Self(targetFileInfo), targetFileInfo);
 
             Assert.True(targetFileInfo != null);
-            Assert.True(targetFileInfo.Value<string>("name").Equals(alteredName));
+            Assert.Equal(alteredName, targetFileInfo.Value<string>("name"));
 
             files = Utils.FollowLink(client, rootVdir, "files")["files"].ToObject<IEnumerable<JObject>>();
             target = files.FirstOrDefault(f => f.Value<string>("name").Equals(alteredName, StringComparison.OrdinalIgnoreCase));

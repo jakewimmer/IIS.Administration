@@ -692,7 +692,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void Delegation()
+        public async System.Threading.Tasks.Task Delegation()
         {
             string[] sections = {
                 "allowed-server-variables",
@@ -705,7 +705,7 @@ namespace Microsoft.IIS.Administration.Tests
 
             using (HttpClient client = ApiHttpClient.Create()) {
 
-                EnsureEnabled(client).Wait();
+                await EnsureEnabled(client);
 
                 foreach (string section in sections) {
 

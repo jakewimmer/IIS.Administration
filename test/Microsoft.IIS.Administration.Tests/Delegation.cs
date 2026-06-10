@@ -26,7 +26,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void SectionLocked()
+        public async System.Threading.Tasks.Task SectionLocked()
         {
             string webServerPath = "/api/webserver";
 
@@ -151,13 +151,13 @@ namespace Microsoft.IIS.Administration.Tests
 
                     // Try to get the feature at site level, this should result in a feature locked error because the override mode at server
                     // level is deny
-                    var response = client.GetAsync($"{Configuration.Instance().TEST_SERVER_URL}{f.Path}?scope={TEST_SITE_NAME}").Result;
+                    var response = await client.GetAsync($"{Configuration.Instance().TEST_SERVER_URL}{f.Path}?scope={TEST_SITE_NAME}");
 
                     // Check for proper status code for feature locked error
                     Assert.True(response.StatusCode == System.Net.HttpStatusCode.Forbidden);
 
                     // Check for proper error title for feature locked
-                    JObject responseBody = JsonConvert.DeserializeObject<JObject>(response.Content.ReadAsStringAsync().Result);
+                    JObject responseBody = JsonConvert.DeserializeObject<JObject>(await response.Content.ReadAsStringAsync());
                     Assert.True(responseBody.Value<string>("title") == "Object is locked");
 
                     // Get web server scope feature
@@ -218,21 +218,21 @@ namespace Microsoft.IIS.Administration.Tests
             Assert.True(client.Patch(Utils.Self(section), JsonConvert.SerializeObject(section), out result));
             section = JsonConvert.DeserializeObject<JObject>(result);
 
-            Assert.Equal(section.Value<string>("override_mode"), "allow");
+            Assert.Equal("allow", section.Value<string>("override_mode"));
 
             section["override_mode"] = "deny";
 
             Assert.True(client.Patch(Utils.Self(section), JsonConvert.SerializeObject(section), out result));
             section = JsonConvert.DeserializeObject<JObject>(result);
 
-            Assert.Equal(section.Value<string>("override_mode"), "deny");
+            Assert.Equal("deny", section.Value<string>("override_mode"));
 
             section["override_mode"] = "inherit";
 
             Assert.True(client.Patch(Utils.Self(section), JsonConvert.SerializeObject(section), out result));
             section = JsonConvert.DeserializeObject<JObject>(result);
 
-            Assert.Equal(section.Value<string>("override_mode"), "inherit");
+            Assert.Equal("inherit", section.Value<string>("override_mode"));
         }
 
         private static void EditFeature(JObject featureRep, DelegatableFeature feature)
