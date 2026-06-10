@@ -7,6 +7,10 @@
 #  - never-expiring access keys authenticate at a negative UTC offset (issues #329/#331)
 #  - concurrent applicationHost.config commits return 409, never an unhandled 500 (issue #324)
 #  - plugin loading, HTTP.sys Windows authentication, and the access-keys UI respond
+#
+# Uses System.Net.Http.HttpClient directly (the same stack as the integration suite's
+# ApiHttpClient): PowerShell's Invoke-WebRequest does not complete the Negotiate/NTLM
+# handshake against this service.
 
 #Requires -Version 7
 [CmdletBinding()]
@@ -30,29 +34,43 @@ function Step($name, [scriptblock] $body) {
     }
 }
 
+function New-WindowsAuthClient {
+    $handler = [System.Net.Http.HttpClientHandler]::new()
+    $handler.UseDefaultCredentials = $true
+    $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
+    [System.Net.Http.HttpClient]::new($handler)
+}
+
+function New-TokenClient([string] $accessToken) {
+    $handler = [System.Net.Http.HttpClientHandler]::new()
+    $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
+    $client = [System.Net.Http.HttpClient]::new($handler)
+    $client.DefaultRequestHeaders.Add('Access-Token', "Bearer $accessToken")
+    $client.DefaultRequestHeaders.Add('Accept', 'application/hal+json')
+    $client
+}
+
+$winClient = New-WindowsAuthClient
+
 # --- Wait for the service to answer ---
-$session = $null
 $deadline = (Get-Date).AddSeconds($StartupTimeoutSeconds)
 $alive = $false
 $probeErrors = @{}
 while ((Get-Date) -lt $deadline) {
     try {
-        $r = Invoke-WebRequest -Uri "$ServerUrl/security/api-keys" -UseDefaultCredentials -SkipCertificateCheck `
-                               -SessionVariable session -Headers @{ Accept = 'application/hal+json' }
-        if ($r.StatusCode -eq 200) { $alive = $true; break }
+        $r = $winClient.GetAsync("$ServerUrl/security/api-keys").GetAwaiter().GetResult()
+        if ($r.StatusCode -eq 200) { $alive = $true; $r.Dispose(); break }
+        $reason = "HTTP $([int]$r.StatusCode)"
+        $r.Dispose()
     } catch {
-        $reason = if ($_.Exception.Response) {
-            "HTTP $([int]$_.Exception.Response.StatusCode) from $($_.Exception.Response.RequestMessage.RequestUri)"
-        } else {
-            $_.Exception.Message
-        }
-        if (-not $probeErrors.ContainsKey($reason)) {
-            $probeErrors[$reason] = 0
-            Write-Host "    probe: $reason"
-        }
-        $probeErrors[$reason]++
-        Start-Sleep -Seconds 3
+        $reason = $_.Exception.Message
     }
+    if (-not $probeErrors.ContainsKey($reason)) {
+        $probeErrors[$reason] = 0
+        Write-Host "    probe: $reason"
+    }
+    $probeErrors[$reason]++
+    Start-Sleep -Seconds 3
 }
 if (-not $alive) {
     $summary = ($probeErrors.GetEnumerator() | ForEach-Object { "$($_.Value)x $($_.Key)" }) -join '; '
@@ -60,20 +78,35 @@ if (-not $alive) {
 }
 Write-Host "Service is up at $ServerUrl (timezone: $((Get-TimeZone).Id), UTC offset: $((Get-TimeZone).BaseUtcOffset))"
 
+function Get-XsrfToken {
+    $r = $winClient.GetAsync("$ServerUrl/security/api-keys").GetAwaiter().GetResult()
+    try {
+        $values = $null
+        if (-not $r.Headers.TryGetValues('XSRF-TOKEN', [ref] $values)) {
+            throw "no XSRF-TOKEN header on GET /security/api-keys (HTTP $([int]$r.StatusCode))"
+        }
+        $values | Select-Object -First 1
+    } finally {
+        $r.Dispose()
+    }
+}
+
 # --- Acquire a NEVER-EXPIRING access key (issue #329/#331 regression: this token must work) ---
 $token = $null
 $keyId = $null
-Step "Create never-expiring access key via NTLM + XSRF" {
-    $r = Invoke-WebRequest -Uri "$ServerUrl/security/api-keys" -UseDefaultCredentials -SkipCertificateCheck -WebSession $session
-    $xsrf = $r.Headers['XSRF-TOKEN'] | Select-Object -First 1
-    if (-not $xsrf) { throw "no XSRF-TOKEN header on GET /security/api-keys" }
+Step "Create never-expiring access key via Windows auth + XSRF" {
+    $xsrf = Get-XsrfToken
 
     # No expires_on -> the key never expires
-    $r = Invoke-WebRequest -Uri "$ServerUrl/security/api-keys" -Method Post -UseDefaultCredentials -SkipCertificateCheck `
-                           -WebSession $session -ContentType 'application/json' `
-                           -Headers @{ 'XSRF-TOKEN' = $xsrf } -Body (@{ purpose = 'CI validation' } | ConvertTo-Json)
-    $key = $r.Content | ConvertFrom-Json
-    if (-not $key.access_token) { throw "no access_token in response: $($r.Content)" }
+    $content = [System.Net.Http.StringContent]::new('{"purpose":"CI validation"}', [System.Text.Encoding]::UTF8, 'application/json')
+    $content.Headers.Add('XSRF-TOKEN', $xsrf)
+    $r = $winClient.PostAsync("$ServerUrl/security/api-keys", $content).GetAwaiter().GetResult()
+    $body = $r.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    if ([int]$r.StatusCode -ge 300) { throw "HTTP $([int]$r.StatusCode): $body" }
+    $r.Dispose()
+
+    $key = $body | ConvertFrom-Json
+    if (-not $key.access_token) { throw "no access_token in response: $body" }
     if ($key.expires_on) { throw "expected a never-expiring key, got expires_on=$($key.expires_on)" }
     $script:token = $key.access_token
     $script:keyId = $key.id
@@ -82,39 +115,52 @@ Step "Create never-expiring access key via NTLM + XSRF" {
 if (-not $token) {
     Write-Error "Cannot continue without an access token. Failures: $($failures -join '; ')"
 }
-$authHeaders = @{ 'Access-Token' = "Bearer $token"; Accept = 'application/hal+json' }
+$apiClient = New-TokenClient $token
 
 Step "Never-expiring token authenticates (issue #329/#331)" {
-    $r = Invoke-WebRequest -Uri "$ServerUrl/api/webserver/application-pools" -SkipCertificateCheck -Headers $authHeaders
-    if ($r.StatusCode -ne 200) { throw "expected 200, got $($r.StatusCode)" }
+    $r = $apiClient.GetAsync("$ServerUrl/api/webserver/application-pools").GetAwaiter().GetResult()
+    if ([int]$r.StatusCode -ne 200) { throw "expected 200, got $([int]$r.StatusCode)" }
+    $r.Dispose()
 }
 
 Step "Plugins loaded (webserver endpoints respond)" {
     foreach ($endpoint in 'application-pools', 'websites') {
-        $r = Invoke-WebRequest -Uri "$ServerUrl/api/webserver/$endpoint" -SkipCertificateCheck -Headers $authHeaders
-        if ($r.StatusCode -ne 200) { throw "GET /api/webserver/${endpoint}: expected 200, got $($r.StatusCode)" }
+        $r = $apiClient.GetAsync("$ServerUrl/api/webserver/$endpoint").GetAwaiter().GetResult()
+        if ([int]$r.StatusCode -ne 200) { throw "GET /api/webserver/${endpoint}: expected 200, got $([int]$r.StatusCode)" }
+        $r.Dispose()
     }
 }
 
 Step "Access-keys UI page renders" {
-    $r = Invoke-WebRequest -Uri "$ServerUrl/security/tokens" -UseDefaultCredentials -SkipCertificateCheck -WebSession $session
-    if ($r.StatusCode -ne 200) { throw "expected 200, got $($r.StatusCode)" }
+    $r = $winClient.GetAsync("$ServerUrl/security/tokens").GetAwaiter().GetResult()
+    if ([int]$r.StatusCode -ne 200) { throw "expected 200, got $([int]$r.StatusCode)" }
+    $r.Dispose()
 }
 
 Step "Concurrent app-pool PATCHes return only 200/409, no 500 (issue #324)" {
-    $pools = (Invoke-WebRequest -Uri "$ServerUrl/api/webserver/application-pools" -SkipCertificateCheck -Headers $authHeaders).Content | ConvertFrom-Json
+    $r = $apiClient.GetAsync("$ServerUrl/api/webserver/application-pools").GetAwaiter().GetResult()
+    $pools = ($r.Content.ReadAsStringAsync().GetAwaiter().GetResult()) | ConvertFrom-Json
+    $r.Dispose()
     $pool = $pools.app_pools | Select-Object -First 1
     if (-not $pool) { throw "no application pools found - is IIS installed?" }
     $poolUrl = "$ServerUrl/api/webserver/application-pools/$($pool.id)"
 
     $statuses = 1..$ConcurrentPatches | ForEach-Object -Parallel {
+        $handler = [System.Net.Http.HttpClientHandler]::new()
+        $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
+        $client = [System.Net.Http.HttpClient]::new($handler)
         try {
-            $r = Invoke-WebRequest -Uri $using:poolUrl -Method Patch -SkipCertificateCheck `
-                                   -Headers $using:authHeaders -ContentType 'application/json' `
-                                   -Body (@{ queue_length = 1000 + $_ } | ConvertTo-Json) -SkipHttpErrorCheck
+            $request = [System.Net.Http.HttpRequestMessage]::new('PATCH', $using:poolUrl)
+            $request.Headers.Add('Access-Token', "Bearer $using:token")
+            $request.Content = [System.Net.Http.StringContent]::new(
+                ('{"queue_length":' + (1000 + $_) + '}'), [System.Text.Encoding]::UTF8, 'application/json')
+            $r = $client.SendAsync($request).GetAwaiter().GetResult()
             [int]$r.StatusCode
+            $r.Dispose()
         } catch {
             -1
+        } finally {
+            $client.Dispose()
         }
     } -ThrottleLimit $ConcurrentPatches
 
@@ -127,10 +173,10 @@ Step "Concurrent app-pool PATCHes return only 200/409, no 500 (issue #324)" {
 # --- Cleanup the CI access key ---
 if ($keyId) {
     try {
-        $r = Invoke-WebRequest -Uri "$ServerUrl/security/api-keys" -UseDefaultCredentials -SkipCertificateCheck -WebSession $session
-        $xsrf = $r.Headers['XSRF-TOKEN'] | Select-Object -First 1
-        Invoke-WebRequest -Uri "$ServerUrl/security/api-keys/$keyId" -Method Delete -UseDefaultCredentials `
-                          -SkipCertificateCheck -WebSession $session -Headers @{ 'XSRF-TOKEN' = $xsrf } | Out-Null
+        $xsrf = Get-XsrfToken
+        $request = [System.Net.Http.HttpRequestMessage]::new('DELETE', "$ServerUrl/security/api-keys/$keyId")
+        $request.Headers.Add('XSRF-TOKEN', $xsrf)
+        $winClient.SendAsync($request).GetAwaiter().GetResult().Dispose()
     } catch {
         Write-Host "cleanup: could not delete CI access key: $_"
     }
