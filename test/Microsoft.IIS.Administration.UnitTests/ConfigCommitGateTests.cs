@@ -54,32 +54,55 @@ namespace Microsoft.IIS.Administration.UnitTests
         }
 
         [Fact]
+        public void UnrelatedFileLoadException_PropagatesUnchanged()
+        {
+            //
+            // FileLoadException is also raised for assembly-load failures. Only the
+            // applicationHost.config "changed on disk" case maps to a retryable 409; anything
+            // else must surface as the original error instead of a misleading conflict.
+            var inner = new FileLoadException("Could not load file or assembly 'Foo'.");
+
+            var ex = Assert.Throws<FileLoadException>(() => ConfigCommitGate.Commit(() => throw inner));
+
+            Assert.Same(inner, ex);
+        }
+
+        [Fact]
         public async Task ConcurrentCommits_AreSerialized()
         {
-            int active = 0;
-            int maxObservedConcurrency = 0;
+            const int Workers = 16;
+            const int IterationsPerWorker = 200;
 
-            Task[] commits = Enumerable.Range(0, 8).Select(_ => Task.Run(() =>
-                ConfigCommitGate.Commit(() => {
-                    int now = Interlocked.Increment(ref active);
-                    InterlockedMax(ref maxObservedConcurrency, now);
-                    Thread.Sleep(10);
-                    Interlocked.Decrement(ref active);
-                }))).ToArray();
+            int inside = 0;
+            int violations = 0;
+
+            //
+            // Force every worker to start contending at the same instant so the critical section is
+            // actually exercised under parallelism, then assert the invariant directly on entry: the
+            // count must transition 0 -> 1. Any other value means a second thread is concurrently
+            // inside, which proves serialization is broken regardless of scheduler timing.
+            using var start = new Barrier(Workers);
+
+            Task[] commits = Enumerable.Range(0, Workers).Select(_ => Task.Run(() => {
+                start.SignalAndWait();
+                for (int i = 0; i < IterationsPerWorker; i++) {
+                    ConfigCommitGate.Commit(() => {
+                        if (Interlocked.Increment(ref inside) != 1) {
+                            Interlocked.Increment(ref violations);
+                        }
+
+                        // Widen the window during which an unserialized commit would overlap.
+                        Thread.SpinWait(2000);
+
+                        Interlocked.Decrement(ref inside);
+                    });
+                }
+            })).ToArray();
 
             await Task.WhenAll(commits);
 
-            Assert.Equal(1, maxObservedConcurrency);
-        }
-
-        private static void InterlockedMax(ref int location, int value)
-        {
-            int current;
-            while (value > (current = Volatile.Read(ref location))) {
-                if (Interlocked.CompareExchange(ref location, value, current) == current) {
-                    break;
-                }
-            }
+            Assert.Equal(0, violations);
+            Assert.Equal(0, inside);
         }
     }
 }

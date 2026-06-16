@@ -81,6 +81,43 @@ namespace Microsoft.IIS.Administration.UnitTests
             Assert.Equal(DateTimeKind.Utc, result.SecurityToken.ValidTo.Kind);
         }
 
+        [Fact]
+        public async Task UnspecifiedKindDates_AreTreatedAsUtc_AndConvertibleToDateTimeOffset()
+        {
+            //
+            // Regression test for https://github.com/microsoft/IIS.Administration/issues/329 and /331:
+            // file and config storage deserialize CreatedOn/ExpiresOn with DateTimeKind.Unspecified
+            // (Convert.ChangeType / IConfiguration.GetValue<DateTime>). DateTimeOffset treats an
+            // Unspecified DateTime as local time, which overflows near DateTime.MaxValue on machines
+            // with a non-zero UTC offset. SecurityToken.AsUtc must re-stamp these as UTC. The existing
+            // tests only feed already-UTC values, so they never exercise this branch.
+            var key = new ApiKey("hash", "SWT") {
+                Id = "key-id",
+                CreatedOn = DateTime.SpecifyKind(new DateTime(2020, 1, 1), DateTimeKind.Unspecified),
+                LastModified = DateTime.SpecifyKind(new DateTime(2020, 1, 1), DateTimeKind.Unspecified),
+                ExpiresOn = DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Unspecified)
+            };
+            Assert.Equal(DateTimeKind.Unspecified, key.ExpiresOn.Value.Kind);
+            Assert.Equal(DateTimeKind.Unspecified, key.CreatedOn.Kind);
+
+            var validator = new BearerTokenValidator(new FakeApiKeyProvider(key));
+
+            TokenValidationResult result = await validator.ValidateTokenAsync(KnownToken, new TokenValidationParameters());
+
+            Assert.True(result.IsValid);
+
+            // AsUtc must convert the Unspecified-kind dates to UTC kind...
+            Assert.Equal(DateTimeKind.Utc, result.SecurityToken.ValidFrom.Kind);
+            Assert.Equal(DateTimeKind.Utc, result.SecurityToken.ValidTo.Kind);
+
+            // ...so DateTimeOffset construction does not overflow near DateTime.MaxValue
+            // (throws ArgumentOutOfRangeException before the fix on a negative-offset machine).
+            var from = new DateTimeOffset(result.SecurityToken.ValidFrom);
+            var to = new DateTimeOffset(result.SecurityToken.ValidTo);
+            Assert.Equal(TimeSpan.Zero, from.Offset);
+            Assert.Equal(TimeSpan.Zero, to.Offset);
+        }
+
         private static ApiKey CreateKey(DateTime? expiresOn)
         {
             return new ApiKey("hash", "SWT") {

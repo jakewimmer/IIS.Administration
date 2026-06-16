@@ -21,7 +21,11 @@ namespace Microsoft.IIS.Administration.Logging
             int tokenIndex = fileName.IndexOf(DateToken, StringComparison.OrdinalIgnoreCase);
 
             if (tokenIndex < 0) {
-                return (Path.Combine(root, fileName), RollingInterval.Infinite);
+                //
+                // No {Date} token. Still roll daily so the configured retainedFileCountLimit
+                // (max_files) keeps pruning old files; Serilog.Sinks.File ignores retention when
+                // the interval is Infinite, which would let a single file grow unbounded.
+                return (Path.Combine(root, fileName), RollingInterval.Day);
             }
 
             //

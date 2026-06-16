@@ -29,7 +29,15 @@ namespace Microsoft.IIS.Administration.WebServer
                 try {
                     commitChanges();
                 }
-                catch (FileLoadException e) {
+                catch (FileLoadException e)
+                    when (e.Message.IndexOf("changed on disk", StringComparison.OrdinalIgnoreCase) >= 0) {
+                    //
+                    // Microsoft.Web.Administration surfaces the applicationHost.config read-modify-write
+                    // race as a FileLoadException ("...the file has changed on disk"). FileLoadException is
+                    // also raised for unrelated assembly-load failures, so only the on-disk-change message
+                    // is mapped to a retryable 409; anything else propagates as an honest error. The message
+                    // originates from native IIS config and may be localized — if it ever fails to match, the
+                    // original exception is preserved rather than masked.
                     throw new ConfigurationConflictException(
                         "IIS configuration was modified by another change. Retry the request.", e);
                 }

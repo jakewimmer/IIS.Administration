@@ -37,7 +37,7 @@
                          Result="value"
                          Variable="DOTNET_RUNTIME_VERSION"
                          Win64="$(var.IsWin64)" />
-    <Variable Name="DOTNET_RUNTIME_VERSION_MINIMAL" Type="version" Value='10.0.0' />
+    <Variable Name="DOTNET_RUNTIME_VERSION_MINIMAL" Type="version" Value='10.0.8' />
     <PackageGroup Id="dotnet_core_pkg">
       <ExePackage Id="dotnet_core_exe"
                   Name="dotnet-runtime-10.0.8-win-x64.exe"
