@@ -14,6 +14,11 @@ env:
   # forced migration of Node 20 actions
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# checks: write lets dorny/test-reporter publish the integration results as a check run.
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   installer-payload-metadata:
     name: Verify installer RemotePayload metadata
@@ -176,7 +181,29 @@ jobs:
             project_path   = '${{ github.workspace }}'
           } | ConvertTo-Json | Set-Content test/Microsoft.IIS.Administration.Tests/test.config.json
           dotnet test test/Microsoft.IIS.Administration.Tests/Microsoft.IIS.Administration.Tests.csproj `
-            --configuration Release --logger 'trx;LogFileName=integration.trx' --results-directory TestResults
+            --configuration Release --logger 'trx;LogFileName=integration.trx' --results-directory TestResults `
+            --collect:"XPlat Code Coverage" --settings build/coverlet.runsettings
+
+      - name: Coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        with:
+          reports: TestResults/**/coverage.cobertura.xml
+          targetdir: coveragereport
+          reporttypes: MarkdownSummaryGithub;Cobertura
+
+      - name: Write coverage to job summary
+        if: always()
+        shell: bash
+        run: cat coveragereport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish integration test results
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Integration tests (${{ matrix.os }})
+          path: TestResults/**/*.trx
+          reporter: dotnet-trx
 
       - name: Upload logs and test results
         if: always()

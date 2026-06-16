@@ -198,11 +198,13 @@ function CleanUp() {
 function StartTest() {
     Write-Host "$(BuildHeader) Functional tests..."
     $testProj = [System.IO.Path]::Combine($projectRoot, "test", "Microsoft.IIS.Administration.Tests", "Microsoft.IIS.Administration.Tests.csproj")
+    $runSettings = [System.IO.Path]::Combine($projectRoot, "build", "coverlet.runsettings")
+    $coverageArgs = @("--collect:XPlat Code Coverage", "--settings", $runSettings)
 
     if ($testFilter) {
-        dotnet test $testProj --filter $testFilter
+        dotnet test $testProj --filter $testFilter @coverageArgs
     } else {
-        dotnet test $testProj
+        dotnet test $testProj @coverageArgs
     }
 }
 
