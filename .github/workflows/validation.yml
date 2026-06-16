@@ -204,6 +204,9 @@ jobs:
           name: Integration tests (${{ matrix.os }})
           path: TestResults/**/*.trx
           reporter: dotnet-trx
+          # The integration suite is informational (its dotnet test step is
+          # continue-on-error); the reporter must surface results, not gate the job.
+          fail-on-error: false
 
       - name: Upload logs and test results
         if: always()
