@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Microsoft.IIS.Administration\Microsoft.IIS.Administration.csproj" />
     <ProjectReference Include="..\..\src\Microsoft.IIS.Administration.WebServer\Microsoft.IIS.Administration.WebServer.csproj" />
+    <ProjectReference Include="..\..\src\Microsoft.IIS.Administration.WebServer.Monitoring\Microsoft.IIS.Administration.WebServer.Monitoring.csproj" />
   </ItemGroup>
 
 </Project>

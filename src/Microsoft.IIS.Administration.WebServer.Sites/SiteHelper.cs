@@ -380,7 +380,17 @@ namespace Microsoft.IIS.Administration.WebServer.Sites
 
             //
             // Name
-            DynamicHelper.If((object)model.name, v => { site.Name = v; });
+            string name = DynamicHelper.Value(model.name);
+            if (name != null && !name.Equals(site.Name, StringComparison.Ordinal)) {
+
+                // Reject a rename that would collide with a different existing site.
+                // Excludes the current site so that re-applying its own name is a no-op (see guard above).
+                if (ManagementUnit.ServerManager.Sites.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && s.Id != site.Id)) {
+                    throw new AlreadyExistsException("name");
+                }
+
+                site.Name = name;
+            }
 
             //
             // Server Auto Start

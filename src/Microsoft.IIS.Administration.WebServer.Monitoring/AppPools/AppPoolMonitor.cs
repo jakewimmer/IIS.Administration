@@ -44,9 +44,24 @@ namespace Microsoft.IIS.Administration.WebServer.Monitoring
             snapshot.Name = pool.Name;
             snapshot.ProcessCount = pool.GetWorkerProcesses().Count();
 
+            AggregateCounters(snapshot, await Query(pool), _processorCount);
+
+            snapshot.TotalInstalledMemory = MemoryData.TotalInstalledMemory;
+            snapshot.SystemMemoryInUse = MemoryData.TotalInstalledMemory - snapshot.AvailableMemory;
+
+            return snapshot;
+        }
+
+        //
+        // Aggregates raw performance counters into a snapshot. Kept free of IIS/OS dependencies and
+        // separate from GetSnapShot so the per-process accumulation - in particular CPU, which is summed
+        // across all of the pool's worker processes and then normalized by the processor count - can be
+        // unit tested. Regression guard for upstream IIS.Administration#322 (CPU always reported 0).
+        internal static void AggregateCounters(AppPoolSnapshot snapshot, IEnumerable<IPerfCounter> counters, int processorCount)
+        {
             long percentCpu = 0;
 
-            foreach (IPerfCounter counter in await Query(pool)) {
+            foreach (IPerfCounter counter in counters) {
 
                 if (counter.CategoryName.Equals(WorkerProcessCounterNames.Category)) {
                     switch (counter.Name) {
@@ -106,7 +121,7 @@ namespace Microsoft.IIS.Administration.WebServer.Monitoring
                 else if (counter.CategoryName.Equals(ProcessCounterNames.Category)) {
                     switch (counter.Name) {
                         case ProcessCounterNames.PercentCpu:
-                            snapshot.PercentCpuTime += counter.Value;
+                            percentCpu += counter.Value;
                             break;
                         case ProcessCounterNames.HandleCount:
                             snapshot.HandleCount += counter.Value;
@@ -146,13 +161,9 @@ namespace Microsoft.IIS.Administration.WebServer.Monitoring
                             break;
                     }
                 }
-
-                snapshot.PercentCpuTime = percentCpu / _processorCount;
-                snapshot.TotalInstalledMemory = MemoryData.TotalInstalledMemory;
-                snapshot.SystemMemoryInUse = MemoryData.TotalInstalledMemory - snapshot.AvailableMemory;
             }
 
-            return snapshot;
+            snapshot.PercentCpuTime = percentCpu / processorCount;
         }
 
         private async Task<IEnumerable<IPerfCounter>> Query(ApplicationPool pool)
