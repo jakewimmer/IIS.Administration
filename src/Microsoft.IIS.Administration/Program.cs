@@ -102,14 +102,38 @@ namespace Microsoft.IIS.Administration {
         }
 
         //
-        // Config-time HTTPS guard: validates the declared "urls" before the host is built.
-        // This is a best-effort early check; the authoritative guard is the post-bind
-        // validation of the actual server addresses in Startup.Configure, which also catches
-        // address sources this string check cannot see (e.g. ASPNETCORE_URLS).
+        // Config-time HTTPS guard: fails fast before the host is built if any declared address
+        // is not HTTPS. This covers every source the host actually binds from — the string and
+        // array forms of "urls" plus ASPNETCORE_URLS (which ConfigurationHelper's unprefixed
+        // AddEnvironmentVariables does not surface under the "urls" key). The post-bind check in
+        // Startup.Configure remains as defense-in-depth over the resolved listener addresses.
         private static void RequireHttps(IConfiguration config) {
-            string urls = config.GetValue<string>("urls") ?? DefaultUrl;
+            var addresses = new System.Collections.Generic.List<string>();
 
-            foreach (var address in urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) {
+            // "urls":"https://a;https://b" (string form), or a single value
+            string urls = config.GetValue<string>("urls");
+            if (!string.IsNullOrEmpty(urls)) {
+                addresses.AddRange(urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            }
+
+            // "urls":[ "https://a", "https://b" ] (array form)
+            foreach (var child in config.GetSection("urls").GetChildren()) {
+                if (!string.IsNullOrEmpty(child.Value)) {
+                    addresses.Add(child.Value.Trim());
+                }
+            }
+
+            // ASPNETCORE_URLS is read by the generic web host but lands under its own key here, not "urls".
+            string envUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+            if (!string.IsNullOrEmpty(envUrls)) {
+                addresses.AddRange(envUrls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            }
+
+            if (addresses.Count == 0) {
+                addresses.Add(DefaultUrl);
+            }
+
+            foreach (var address in addresses) {
                 if (!address.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
                     throw new ArgumentException($"{address} - HTTPS is required");
                 }

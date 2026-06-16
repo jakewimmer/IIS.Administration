@@ -39,7 +39,10 @@ function Step($name, [scriptblock] $body) {
     }
 }
 
-function New-WindowsAuthClient {
+# Single source of truth for the HttpClientHandler: selects Windows credentials (or the
+# default identity) and accepts the dev/self-signed server cert. Reads $UserName/$Password
+# from the enclosing script scope.
+function New-AuthHandler {
     $handler = [System.Net.Http.HttpClientHandler]::new()
     if ($UserName) {
         $handler.Credentials = [System.Net.NetworkCredential]::new($UserName, $Password)
@@ -47,20 +50,17 @@ function New-WindowsAuthClient {
         $handler.UseDefaultCredentials = $true
     }
     $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
-    [System.Net.Http.HttpClient]::new($handler)
+    $handler
+}
+
+function New-WindowsAuthClient {
+    [System.Net.Http.HttpClient]::new((New-AuthHandler))
 }
 
 # With require_windows_authentication enabled the API demands Windows credentials AND an
 # access token on every /api request, mirroring the integration suite's ApiHttpClient.
 function New-TokenClient([string] $accessToken) {
-    $handler = [System.Net.Http.HttpClientHandler]::new()
-    if ($UserName) {
-        $handler.Credentials = [System.Net.NetworkCredential]::new($UserName, $Password)
-    } else {
-        $handler.UseDefaultCredentials = $true
-    }
-    $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
-    $client = [System.Net.Http.HttpClient]::new($handler)
+    $client = [System.Net.Http.HttpClient]::new((New-AuthHandler))
     $client.DefaultRequestHeaders.Add('Access-Token', "Bearer $accessToken")
     $client.DefaultRequestHeaders.Add('Accept', 'application/hal+json')
     $client
@@ -163,6 +163,9 @@ Step "Concurrent app-pool PATCHes return only 200/409, no 500 (issue #324)" {
     $poolUrl = "$ServerUrl/api/webserver/application-pools/$($pool.id)"
 
     $statuses = 1..$ConcurrentPatches | ForEach-Object -Parallel {
+        # ForEach-Object -Parallel runs each iteration in a separate runspace, so the script's
+        # New-AuthHandler function isn't in scope here; this inlines the same handler setup, with
+        # the script-scope credentials pulled in via $using:.
         $handler = [System.Net.Http.HttpClientHandler]::new()
         if ($using:UserName) {
             $handler.Credentials = [System.Net.NetworkCredential]::new($using:UserName, $using:Password)
