@@ -16,6 +16,11 @@ env:
   # forced migration of Node 20 actions
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# checks: write lets dorny/test-reporter publish the test results as a check run.
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   build-windows:
     name: Build, test, and package (Windows)
@@ -36,9 +41,46 @@ jobs:
         run: msbuild Microsoft.IIS.Administration.sln -m /t:publish /p:Configuration=Release
 
       - name: Run unit tests
-        run: dotnet test test\Microsoft.IIS.Administration.UnitTests\Microsoft.IIS.Administration.UnitTests.csproj --configuration Release
+        run: >
+          dotnet test test\Microsoft.IIS.Administration.UnitTests\Microsoft.IIS.Administration.UnitTests.csproj
+          --configuration Release
+          --collect:"XPlat Code Coverage" --settings build/coverlet.runsettings
+          --logger trx --results-directory TestResults
         # The integration suite (test\Microsoft.IIS.Administration.Tests) requires a configured IIS
         # plus a running instance of the service and is not executed on hosted runners.
+
+      - name: Coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        with:
+          reports: TestResults/**/coverage.cobertura.xml
+          targetdir: coveragereport
+          reporttypes: MarkdownSummaryGithub;Cobertura
+
+      - name: Write coverage to job summary
+        if: always()
+        shell: bash
+        run: cat coveragereport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Unit tests (Windows)
+          path: TestResults/**/*.trx
+          reporter: dotnet-trx
+          # The dotnet test step above already gates the job on test failure;
+          # this step only surfaces the results, it should not be a second gate.
+          fail-on-error: false
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-unit-windows
+          path: |
+            TestResults/**/coverage.cobertura.xml
+            coveragereport/
 
       - name: Clean build directory
         run: powershell -NonInteractive -ExecutionPolicy Unrestricted -File scripts/build/Clean-BuildDir.ps1 -manifestDir ${{ github.workspace }}/dist
@@ -83,4 +125,41 @@ jobs:
         run: dotnet build Microsoft.IIS.Administration.CrossPlatform.slnf --configuration Release
 
       - name: Run unit tests
-        run: dotnet test test/Microsoft.IIS.Administration.UnitTests/Microsoft.IIS.Administration.UnitTests.csproj --configuration Release --no-build
+        run: >
+          dotnet test test/Microsoft.IIS.Administration.UnitTests/Microsoft.IIS.Administration.UnitTests.csproj
+          --configuration Release --no-build
+          --collect:"XPlat Code Coverage" --settings build/coverlet.runsettings
+          --logger trx --results-directory TestResults
+
+      - name: Coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        with:
+          reports: TestResults/**/coverage.cobertura.xml
+          targetdir: coveragereport
+          reporttypes: MarkdownSummaryGithub;Cobertura
+
+      - name: Write coverage to job summary
+        if: always()
+        shell: bash
+        run: cat coveragereport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Unit tests (Linux)
+          path: TestResults/**/*.trx
+          reporter: dotnet-trx
+          # The dotnet test step above already gates the job on test failure;
+          # this step only surfaces the results, it should not be a second gate.
+          fail-on-error: false
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-unit-linux
+          path: |
+            TestResults/**/coverage.cobertura.xml
+            coveragereport/
