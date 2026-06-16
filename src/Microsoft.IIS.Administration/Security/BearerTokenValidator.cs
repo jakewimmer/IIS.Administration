@@ -29,9 +29,13 @@ namespace Microsoft.IIS.Administration.Security {
             try {
                 key = _keyProvider.FindKey(token);
             }
-            catch {
+            catch (Exception e) {
                 //
-                // Failure to obtain the key is considered as invalid/missing key
+                // Failure to obtain the key is treated as an invalid/missing key, but trace the
+                // underlying fault so a transient storage error (locked/corrupted api-keys file,
+                // permission problem) is diagnosable instead of a silent blanket 401.
+                System.Diagnostics.Trace.TraceWarning(
+                    $"BearerTokenValidator: failed to resolve api-key ({e.GetType().Name}): {e.Message}");
             }
 
             //

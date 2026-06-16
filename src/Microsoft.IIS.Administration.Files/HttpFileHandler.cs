@@ -199,7 +199,7 @@ namespace Microsoft.IIS.Administration.Files
                 //
                 // Date
                 if (!_context.Response.Headers.ContainsKey(HeaderNames.Date)) {
-                    _context.Response.Headers[HeaderNames.Date] = DateTime.UtcNow.ToString();
+                    _context.Response.Headers[HeaderNames.Date] = DateTime.UtcNow.ToString("r");
                 }
             }
 

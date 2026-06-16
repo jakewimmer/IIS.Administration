@@ -203,7 +203,13 @@ namespace Microsoft.IIS.Administration {
         private static void RequireHttps(IApplicationBuilder app, IHostApplicationLifetime applicationLifeTime) {
             var serverAddresses = app.ServerFeatures.Get<IServerAddressesFeature>();
 
-            if (serverAddresses == null) {
+            if (serverAddresses == null || serverAddresses.Addresses.Count == 0) {
+                //
+                // The bound addresses could not be determined (IServerAddressesFeature is not always
+                // populated, e.g. under some HTTP.sys configurations). Do not silently pass: surface a
+                // warning so the gap is visible. The config-time RequireHttps check in Program already
+                // fails fast for configured "urls"/ASPNETCORE_URLS addresses.
+                Log.Warning("HTTPS guard could not enumerate bound server addresses; unable to re-validate that all listeners use HTTPS.");
                 return;
             }
 
