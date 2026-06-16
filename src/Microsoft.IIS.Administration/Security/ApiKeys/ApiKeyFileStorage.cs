@@ -230,27 +230,15 @@ namespace Microsoft.IIS.Administration.Security {
         private static ApiKey FromJson(dynamic key) {
             string tokenHash = DynamicHelper.Value(key.token_hash) ?? DynamicHelper.Value(key.hash);
             string tokenType = DynamicHelper.Value(key.token_type) ?? "SWT";
-            DateTime createdOn = AsUtc(DynamicHelper.To<DateTime>(key.created_on) ?? DateTime.UtcNow);
+            DateTime createdOn = DateTimeHelper.AsUtc(DynamicHelper.To<DateTime>(key.created_on) ?? DateTime.UtcNow);
 
             return new ApiKey(tokenHash, tokenType) {
                 Id = DynamicHelper.Value(key.id) ?? GenerateId(),
                 Purpose = DynamicHelper.Value(key.purpose) ?? string.Empty,
                 CreatedOn = createdOn,
-                ExpiresOn = AsUtc(DynamicHelper.To<DateTime>(key.expires_on)),
-                LastModified = AsUtc(DynamicHelper.To<DateTime>(key.last_modified) ?? createdOn)
+                ExpiresOn = DateTimeHelper.AsUtc(DynamicHelper.To<DateTime>(key.expires_on)),
+                LastModified = DateTimeHelper.AsUtc(DynamicHelper.To<DateTime>(key.last_modified) ?? createdOn)
             };
-        }
-
-        private static DateTime AsUtc(DateTime value) {
-            //
-            // Deserialized timestamps can carry DateTimeKind.Unspecified; force UTC so the expiry
-            // comparison against DateTime.UtcNow in ApiKeyProvider.FindKey is correct on hosts with a
-            // non-zero UTC offset (see issues #329/#331).
-            return value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime();
-        }
-
-        private static DateTime? AsUtc(DateTime? value) {
-            return value.HasValue ? AsUtc(value.Value) : (DateTime?)null;
         }
 
         private static byte[] GenerateRandom(int bytesLen) {

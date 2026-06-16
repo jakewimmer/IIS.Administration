@@ -5,6 +5,7 @@
 namespace Microsoft.IIS.Administration.Security {
     using System;
     using Core.Security;
+    using Core.Utils;
     using IdentityModel.Tokens;
 
     class SecurityToken : IdentityModel.Tokens.SecurityToken {
@@ -48,7 +49,7 @@ namespace Microsoft.IIS.Administration.Security {
 
         public override DateTime ValidFrom {
             get {
-                return AsUtc(_key.CreatedOn);
+                return DateTimeHelper.AsUtc(_key.CreatedOn);
             }
         }
 
@@ -57,12 +58,8 @@ namespace Microsoft.IIS.Administration.Security {
                 // Tokens that never expire must report a UTC-kind expiration. An Unspecified kind is
                 // treated as local time by DateTimeOffset, which overflows for DateTime.MaxValue on
                 // servers with a non-zero UTC offset (https://github.com/microsoft/IIS.Administration/issues/329, /331)
-                return _key.ExpiresOn.HasValue ? AsUtc(_key.ExpiresOn.Value) : DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc);
+                return _key.ExpiresOn.HasValue ? DateTimeHelper.AsUtc(_key.ExpiresOn.Value) : DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc);
             }
-        }
-
-        private static DateTime AsUtc(DateTime value) {
-            return value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime();
         }
     }
 }
