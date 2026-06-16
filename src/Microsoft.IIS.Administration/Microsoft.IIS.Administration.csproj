@@ -164,13 +164,4 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <PropertyGroup>
-    <integrity-local>sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs</integrity-local>
-    <integrity-publish>sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs</integrity-publish>
-    <layoutfile>$(AppPublishRoot)\Views\Shared\_Layout.cshtml</layoutfile>
-  </PropertyGroup>
-  <Target Name="PostPublish" AfterTargets="Publish" Condition="'$(OS)' == 'Windows_NT'">
-     <!-- Replace the integrity code. Need different values for local debugging and published signed files  -->
-     <Exec Command="PowerShell -Command &quot;(Get-Content $(layoutfile)) -replace '$(integrity-local)', '$(integrity-publish)' | Out-File -encoding ASCII $(layoutfile)&quot; "/>
-  </Target>
 </Project>
