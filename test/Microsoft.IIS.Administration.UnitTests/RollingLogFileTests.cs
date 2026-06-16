@@ -30,12 +30,15 @@ namespace Microsoft.IIS.Administration.UnitTests
         }
 
         [Fact]
-        public void PlainFileName_DoesNotRoll()
+        public void PlainFileName_RollsDailySoRetentionApplies()
         {
+            //
+            // A name without {Date} still rolls daily; otherwise Serilog.Sinks.File ignores
+            // retainedFileCountLimit (max_files) and the single file grows unbounded.
             var (path, interval) = RollingLogFile.Resolve("logs", "log.txt");
 
             Assert.Equal(Path.Combine("logs", "log.txt"), path);
-            Assert.Equal(RollingInterval.Infinite, interval);
+            Assert.Equal(RollingInterval.Day, interval);
         }
     }
 }
