@@ -12,8 +12,10 @@ namespace Microsoft.IIS.Administration.WebServer
     /// Serializes applicationHost.config commits across requests. IIS stores configuration in a single
     /// file, so concurrent commits race: the loser observes "the file has changed on disk" and
     /// Microsoft.Web.Administration surfaces it as a FileLoadException
-    /// (https://github.com/microsoft/IIS.Administration/issues/324). The gate prevents interleaved
-    /// writes and converts the remaining read-modify-write conflicts into HTTP 409 so clients can retry.
+    /// (https://github.com/microsoft/IIS.Administration/issues/324). The static lock is an in-process
+    /// guard, so it only serializes commits originating from this process. Residual cross-process races
+    /// (IIS Manager, appcmd, or another instance writing the file) cannot be locked out here; they still
+    /// surface as the same FileLoadException, which the gate converts into HTTP 409 so clients can retry.
     /// </summary>
     static class ConfigCommitGate
     {
