@@ -4,8 +4,8 @@
 
 namespace Microsoft.IIS.Administration.Security {
     using System;
-    using System.Collections.Generic;
     using System.Security.Claims;
+    using System.Threading.Tasks;
     using Core.Http;
     using Core.Security;
     using AspNetCore.Authentication.JwtBearer;
@@ -13,7 +13,7 @@ namespace Microsoft.IIS.Administration.Security {
 
 
 
-    public class BearerTokenValidator : ISecurityTokenValidator {
+    public class BearerTokenValidator : TokenHandler {
         private IApiKeyProvider _keyProvider;
 
 
@@ -21,59 +21,41 @@ namespace Microsoft.IIS.Administration.Security {
             _keyProvider = keyProvider ?? throw new ArgumentNullException(nameof(keyProvider));
         }
 
-        public bool CanValidateToken {
-            get {
-                throw new NotImplementedException();
-            }
-        }
-
-        public int MaximumTokenSizeInBytes {
-            get {
-                throw new NotImplementedException();
-            }
-
-            set {
-                throw new NotImplementedException();
-            }
-        }
-
-        public bool CanReadToken(string securityToken) {
-            // 
-            // Basic check
-            // ValidateToken will perform extensive validation
-            return !string.IsNullOrWhiteSpace(securityToken);
-        }
-
-        public ClaimsPrincipal ValidateToken(string securityToken, 
-                                            TokenValidationParameters validationParameters, 
-                                            out IdentityModel.Tokens.SecurityToken validatedToken) {
+        public override async Task<TokenValidationResult> ValidateTokenAsync(string token,
+                                                                             TokenValidationParameters validationParameters) {
             ApiKey key = null;
 
             // Look up api-key
             try {
-                key = _keyProvider.FindKey(securityToken);
+                key = await _keyProvider.FindKeyAsync(token);
             }
-            catch {
+            catch (Exception e) {
                 //
-                // Failure to obtain the key is considered as invalid/missing key
+                // Failure to obtain the key is treated as an invalid/missing key, but trace the
+                // underlying fault so a transient storage error (locked/corrupted api-keys file,
+                // permission problem) is diagnosable instead of a silent blanket 401.
+                System.Diagnostics.Trace.TraceWarning(
+                    $"BearerTokenValidator: failed to resolve api-key ({e.GetType().Name}): {e.Message}");
             }
 
             //
             // The api-key is not found, so the validation's failed.
             if (key == null) {
-                validatedToken = null;
-
-                // Unauthenticated Principal
-                return new ClaimsPrincipal(); 
+                return new TokenValidationResult() {
+                    IsValid = false,
+                    Exception = new SecurityTokenException("Invalid access token")
+                };
             }
 
             //
             // Success!
-            validatedToken = new SecurityToken(key);
-
-            // Authenticated Principal
-            IEnumerable<Claim> claims = new Claim[] { new Claim(Core.Security.ClaimTypes.AccessToken, securityToken) };
-            return new ClaimsPrincipal(new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme));
+            return new TokenValidationResult() {
+                IsValid = true,
+                SecurityToken = new SecurityToken(key),
+                ClaimsIdentity = new ClaimsIdentity(
+                    new Claim[] { new Claim(Core.Security.ClaimTypes.AccessToken, token) },
+                    JwtBearerDefaults.AuthenticationScheme)
+            };
         }
 
 
@@ -98,24 +80,12 @@ namespace Microsoft.IIS.Administration.Security {
             }
 
             if (!string.IsNullOrEmpty(token)) {
-                // ValidateToken will determine later if the provided token can be used
+                // ValidateTokenAsync will determine later if the provided token can be used
                 ctx.Token = token;
             }
         }
 
         public void OnValidatedToken(TokenValidatedContext ctx) {
-            /*
-            // 
-            // Join identities if successfully authenticated
-            if (ctx.Ticket?.Principal?.Identity?.IsAuthenticated == true) {
-                if (ctx.HttpContext.User != null) {
-                    ctx.HttpContext.User.AddIdentities(ctx.Ticket.Principal.Identities);
-                }
-                else {
-                    ctx.HttpContext.User = ctx.Ticket.Principal;
-                }
-            }
-            */
         }
     }
 }

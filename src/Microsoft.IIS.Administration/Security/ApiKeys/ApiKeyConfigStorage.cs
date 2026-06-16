@@ -117,9 +117,9 @@ namespace Microsoft.IIS.Administration.Security {
             var key = new ApiKey(config.GetValue<string>("token_hash"), config.GetValue<string>("token_type") ?? "SWT") {
                 Id = config.GetValue<string>("id") ?? GenerateId(),
                 Purpose = config.GetValue<string>("purpose") ?? string.Empty,
-                CreatedOn = config.GetValue<DateTime>("created_on"),
-                ExpiresOn = config.GetValue<DateTime>("expires_on"),
-                LastModified = config.GetValue<DateTime>("last_modified")
+                CreatedOn = DateTimeHelper.AsUtc(config.GetValue<DateTime>("created_on")),
+                ExpiresOn = DateTimeHelper.AsUtc(config.GetValue<DateTime>("expires_on")),
+                LastModified = DateTimeHelper.AsUtc(config.GetValue<DateTime>("last_modified"))
             };
 
             if (key.CreatedOn == DateTime.MinValue) {

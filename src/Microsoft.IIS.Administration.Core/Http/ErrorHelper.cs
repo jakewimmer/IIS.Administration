@@ -80,6 +80,14 @@ namespace Microsoft.IIS.Administration.Core.Http {
             };
         }
 
+        public static dynamic ConflictError(string message) {
+            return new {
+                title = "Conflict",
+                detail = message ?? string.Empty,
+                status = (int)HttpStatusCode.Conflict
+            };
+        }
+
         public static dynamic LockedError(string name) {
             return new {
                 title = "Object is locked",

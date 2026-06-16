@@ -85,6 +85,13 @@ namespace Microsoft.IIS.Administration.Security {
         }
 
         public ApiKey FindKey(string token) {
+            //
+            // Synchronous shim for non-hot-path callers (auditing, token controller). The
+            // authentication hot path uses FindKeyAsync so it never blocks a thread-pool thread.
+            return FindKeyAsync(token).GetAwaiter().GetResult();
+        }
+
+        public async Task<ApiKey> FindKeyAsync(string token) {
             if (string.IsNullOrWhiteSpace(token)) {
                 return null;
             }
@@ -114,7 +121,7 @@ namespace Microsoft.IIS.Administration.Security {
                 //
                 // Check stores
                 foreach (var s in _storages) {
-                    apiKey = s.GetKeyByHash(hmac).Result;
+                    apiKey = await s.GetKeyByHash(hmac);
 
                     if (apiKey != null) {
                         break;
@@ -210,10 +217,9 @@ namespace Microsoft.IIS.Administration.Security {
 
         private byte[] CalcHash(byte[] key, byte[] salt) {
             //
-            //
-            using (var rfc2898DeriveBytes = new Rfc2898DeriveBytes(key, salt, 100000)) {
-                return rfc2898DeriveBytes.GetBytes(_options.HashSize);
-            }
+            // SHA1 matches the obsolete Rfc2898DeriveBytes constructor default; existing stored
+            // key hashes depend on it
+            return Rfc2898DeriveBytes.Pbkdf2(key, salt, 100000, HashAlgorithmName.SHA1, _options.HashSize);
         }
 
         private static string GenerateId() {

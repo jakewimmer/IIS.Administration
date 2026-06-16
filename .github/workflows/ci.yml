@@ -1,0 +1,86 @@
+name: CI
+
+# Adapted from .azure/pipelines/build.yml. The MicroBuild signing, symbol publishing, and
+# signed-bits verification stages are Microsoft-internal and are intentionally not ported;
+# this workflow produces unsigned builds.
+on:
+  push:
+    branches: [dev, 'releases/**']
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  # microsoft/setup-msbuild has no Node 24 major yet; opt in ahead of the June 16, 2026
+  # forced migration of Node 20 actions
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-windows:
+    name: Build, test, and package (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Restore solution
+        run: nuget restore Microsoft.IIS.Administration.sln
+
+      - name: Build and publish
+        run: msbuild Microsoft.IIS.Administration.sln -m /t:publish /p:Configuration=Release
+
+      - name: Run unit tests
+        run: dotnet test test\Microsoft.IIS.Administration.UnitTests\Microsoft.IIS.Administration.UnitTests.csproj --configuration Release
+        # The integration suite (test\Microsoft.IIS.Administration.Tests) requires a configured IIS
+        # plus a running instance of the service and is not executed on hosted runners.
+
+      - name: Clean build directory
+        run: powershell -NonInteractive -ExecutionPolicy Unrestricted -File scripts/build/Clean-BuildDir.ps1 -manifestDir ${{ github.workspace }}/dist
+
+      - name: Restore installer packages
+        run: nuget restore installer/IISAdministrationSetup/packages.config -SolutionDirectory installer
+
+      - name: Build installer
+        run: msbuild installer/IISAdministrationSetup.sln -m /p:Configuration=Release /p:Platform=x64
+
+      - name: 'Publish artifact: IIS Administration'
+        uses: actions/upload-artifact@v7
+        with:
+          name: IIS.Administration
+          path: dist/
+
+      - name: 'Publish artifact: IISAdministrationSetup'
+        uses: actions/upload-artifact@v7
+        with:
+          name: IISAdministrationSetup
+          path: installer/IISAdministrationBundle/bin/x64/Release/
+
+      - name: 'Publish artifact: IISAdministrationSetup MSI'
+        uses: actions/upload-artifact@v7
+        with:
+          name: IISAdministrationSetup-MSI
+          path: installer/IISAdministrationSetup/bin/
+
+  build-linux:
+    name: Cross-platform build and unit tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      # The solution filter excludes Microsoft.Web.Administration.Refs, a legacy-format
+      # .NET Framework shim project that only MSBuild on Windows can build.
+      - name: Build
+        run: dotnet build Microsoft.IIS.Administration.CrossPlatform.slnf --configuration Release
+
+      - name: Run unit tests
+        run: dotnet test test/Microsoft.IIS.Administration.UnitTests/Microsoft.IIS.Administration.UnitTests.csproj --configuration Release --no-build

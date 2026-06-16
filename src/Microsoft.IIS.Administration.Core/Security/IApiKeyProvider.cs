@@ -14,6 +14,8 @@ namespace Microsoft.IIS.Administration.Core.Security {
 
         ApiKey FindKey(string token);
 
+        Task<ApiKey> FindKeyAsync(string token);
+
         Task<IEnumerable<ApiKey>> GetAllKeys();
 
         ApiKey GetKey(string id);

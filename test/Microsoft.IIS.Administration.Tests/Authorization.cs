@@ -53,7 +53,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void AddRemoveRule()
+        public async System.Threading.Tasks.Task AddRemoveRule()
         {
             using (HttpClient client = ApiHttpClient.Create()) {
 
@@ -88,7 +88,7 @@ namespace Microsoft.IIS.Administration.Tests
 
                 HttpContent content = new StringContent(JsonConvert.SerializeObject(conflictingRule), Encoding.UTF8, "application/json");
 
-                var res = client.PostAsync(Utils.GetLink(feature, "rules"), content).Result;
+                var res = await client.PostAsync(Utils.GetLink(feature, "rules"), content);
 
                 Assert.True(res.StatusCode == HttpStatusCode.Conflict);
 
@@ -114,7 +114,7 @@ namespace Microsoft.IIS.Administration.Tests
             return Utils.ToJ(content);
         }
 
-        public static void ClearRules(HttpClient client, JObject feature)
+        internal static void ClearRules(HttpClient client, JObject feature)
         {
             string result;
             Assert.True(client.Get(Utils.GetLink(feature, "rules"), out result));

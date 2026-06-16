@@ -1,0 +1,189 @@
+name: Validation
+
+# Automates the runtime validation that previously required a manual Windows + IIS pass
+# (fast-forward.md Phase 7): real MSI install, service startup under HTTP.sys, the #329/#331
+# and #324 regression scenarios, plugin loading, and the integration test suite.
+on:
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  # microsoft/setup-msbuild has no Node 24 major yet; opt in ahead of the June 16, 2026
+  # forced migration of Node 20 actions
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  installer-payload-metadata:
+    name: Verify installer RemotePayload metadata
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Restore installer packages (for heat.exe)
+        run: nuget restore installer/IISAdministrationSetup/packages.config -SolutionDirectory installer
+
+      - name: Verify RemotePayload metadata against published installers
+        shell: pwsh
+        run: ./scripts/ci/Test-RemotePayloads.ps1
+
+  validate:
+    name: Install and runtime validation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-2022]
+    steps:
+      - uses: actions/checkout@v6
+
+      # Exercises issue #329/#331: JWT validation must work at a negative UTC offset.
+      - name: Set timezone to UTC-10
+        shell: pwsh
+        run: |
+          Set-TimeZone -Id 'Hawaiian Standard Time'
+          Get-TimeZone
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: microsoft/setup-msbuild@v2
+
+      # Only the base Web-Server role (with its default sub-features) - the API manages
+      # configuration through Microsoft.Web.Administration and does not need every IIS feature.
+      - name: Install IIS (Web-Server role only)
+        shell: powershell
+        run: |
+          Install-WindowsFeature -Name Web-Server | Format-Table -AutoSize
+          Get-Service W3SVC | Format-Table -AutoSize
+
+      # The Windows service runs as LocalSystem, which only finds machine-wide,
+      # registry-installed runtimes - setup-dotnet's user-scoped install is not enough.
+      - name: Install .NET 10 runtimes machine-wide
+        shell: pwsh
+        run: |
+          $runtimes = @(
+            'https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-win-x64.exe',
+            'https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/10.0.8/aspnetcore-runtime-10.0.8-win-x64.exe'
+          )
+          foreach ($url in $runtimes) {
+            $exe = Join-Path $env:RUNNER_TEMP (Split-Path $url -Leaf)
+            Invoke-WebRequest -Uri $url -OutFile $exe
+            $p = Start-Process $exe -ArgumentList '/install', '/quiet', '/norestart' -Wait -PassThru
+            if ($p.ExitCode -notin 0, 3010) { throw "$exe failed with exit code $($p.ExitCode)" }
+          }
+          & "$env:ProgramFiles\dotnet\dotnet.exe" --list-runtimes
+
+      - name: Restore solution
+        run: nuget restore Microsoft.IIS.Administration.sln
+
+      - name: Build and publish
+        run: msbuild Microsoft.IIS.Administration.sln -m /t:publish /p:Configuration=Release
+
+      - name: Clean build directory
+        run: powershell -NonInteractive -ExecutionPolicy Unrestricted -File scripts/build/Clean-BuildDir.ps1 -manifestDir ${{ github.workspace }}/dist
+
+      - name: Build installer
+        run: |
+          nuget restore installer/IISAdministrationSetup/packages.config -SolutionDirectory installer
+          msbuild installer/IISAdministrationSetup.sln -m /p:Configuration=Release /p:Platform=x64
+
+      - name: Install MSI silently
+        shell: pwsh
+        run: |
+          # msiexec rejects forward-slash paths with exit code 1619
+          $msi = Convert-Path 'installer/IISAdministrationSetup/bin/x64/Release/en-us/IISAdministrationSetup.msi'
+          $log = Join-Path $env:RUNNER_TEMP 'msi-install.log'
+          $p = Start-Process msiexec -ArgumentList '/i', $msi, '/qn', '/norestart', 'VSEXTUI=1', 'DEFAULT_CORS=true', '/l*v', $log -Wait -PassThru
+          if ($p.ExitCode -notin 0, 3010) {
+            Get-Content $log -Tail 80
+            throw "msiexec failed with exit code $($p.ExitCode)"
+          }
+
+      - name: Wait for service
+        shell: pwsh
+        run: |
+          # Query by exact name: enumerating all services throws on Windows Server 2025,
+          # where protected services (e.g. WaaSMedicSvc) deny SCM queries.
+          $svc = Get-Service -Name 'Microsoft IIS Administration' -ErrorAction SilentlyContinue
+          if (-not $svc) { throw 'IIS Administration service not found after install' }
+          $svc | Format-Table Name, DisplayName, Status -AutoSize
+          if ($svc.Status -ne 'Running') { Start-Service $svc.Name; $svc.WaitForStatus('Running', '00:01:00') }
+
+      # SSO with the runner's own session yields an anonymous NTLM logon, so validate
+      # Windows auth with a dedicated local account that is an API administrator.
+      - name: Runtime smoke validation (issues 329/331/324, plugins, UI)
+        shell: pwsh
+        run: |
+          $bytes = [byte[]]::new(18)
+          [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+          # Hex only: base64 can start with '/', which net.exe parses as an option
+          $password = (($bytes | ForEach-Object { $_.ToString('x2') }) -join '') + '!Aa1'
+          Write-Host "::add-mask::$password"
+          "IISADMINCI_PW=$password" >> $env:GITHUB_ENV
+          net user iisadminci $password /add /y | Out-Null
+          Add-LocalGroupMember -Group 'IIS Administration API Owners' -Member iisadminci
+          ./scripts/ci/Invoke-ValidationSmoke.ps1 -UserName iisadminci -Password $password
+
+      - name: Diagnostics on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          Write-Host '=== Final probe with CI account credentials ==='
+          try {
+            $handler = [System.Net.Http.HttpClientHandler]::new()
+            $handler.Credentials = [System.Net.NetworkCredential]::new('iisadminci', $env:IISADMINCI_PW)
+            $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
+            $client = [System.Net.Http.HttpClient]::new($handler)
+            $r = $client.GetAsync('https://localhost:55539/security/api-keys').GetAwaiter().GetResult()
+            Write-Host "HTTP $([int]$r.StatusCode)"
+            $body = $r.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+            if ($body) { Write-Host $body.Substring(0, [Math]::Min(500, $body.Length)) }
+          } catch {
+            Write-Host "Final probe failed: $($_.Exception.Message)"
+          }
+          Write-Host '=== Service status ==='
+          Get-Service -Name 'Microsoft IIS Administration' -ErrorAction SilentlyContinue | Format-Table Name, Status -AutoSize
+          Write-Host '=== Listeners on 55539 ==='
+          netstat -ano | Select-String 55539
+          Write-Host '=== HTTP.sys SSL binding for 55539 ==='
+          netsh http show sslcert | Select-String -Pattern '55539' -Context 1, 6
+          Write-Host '=== Application event log (IIS Administration API) ==='
+          Get-WinEvent -LogName Application -MaxEvents 500 -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProviderName -like '*IIS Administration*' } |
+            ForEach-Object { Write-Host "[$($_.TimeCreated)] $($_.LevelDisplayName): $($_.Message)`n" }
+          Write-Host '=== Installed appsettings.json ==='
+          Get-ChildItem 'C:\Program Files\IIS Administration' -Recurse -Filter appsettings.json -ErrorAction SilentlyContinue |
+            ForEach-Object { Write-Host "--- $($_.FullName)"; Get-Content $_.FullName }
+          Write-Host '=== Service log files ==='
+          Get-ChildItem 'C:\Program Files\IIS Administration' -Recurse -Include 'log*.txt', 'audit*.txt' -ErrorAction SilentlyContinue |
+            ForEach-Object { Write-Host "--- $($_.FullName)"; Get-Content $_.FullName -Tail 120 }
+
+      # The integration suite predates this fork and requires broad IIS feature coverage;
+      # it is informational until its results on hosted runners have been triaged.
+      - name: Run integration test suite (informational)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path C:\tests -Force | Out-Null
+          @{
+            test_server    = 'https://localhost'
+            test_port      = '55539'
+            test_root_path = 'C:\tests'
+            project_path   = '${{ github.workspace }}'
+          } | ConvertTo-Json | Set-Content test/Microsoft.IIS.Administration.Tests/test.config.json
+          dotnet test test/Microsoft.IIS.Administration.Tests/Microsoft.IIS.Administration.Tests.csproj `
+            --configuration Release --logger 'trx;LogFileName=integration.trx' --results-directory TestResults
+
+      - name: Upload logs and test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: validation-${{ matrix.os }}
+          path: |
+            TestResults/
+            ${{ runner.temp }}/msi-install.log
+          if-no-files-found: ignore

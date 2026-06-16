@@ -158,6 +158,10 @@ DocProject/Help/html
 # NuGet v3's project.json files produces more ignoreable files
 *.nuget.props
 *.nuget.targets
+*.nuget.g.props
+*.nuget.g.targets
+*.nuget.dgspec.json
+project.assets.json
 
 # Microsoft Azure Build Output
 csx/

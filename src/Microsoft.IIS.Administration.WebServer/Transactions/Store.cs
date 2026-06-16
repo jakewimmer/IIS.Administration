@@ -5,6 +5,7 @@
 namespace Microsoft.IIS.Administration.WebServer
 {
     using AspNetCore.Http;
+    using Core;
     using System;
     using System.Threading;
 
@@ -59,7 +60,17 @@ namespace Microsoft.IIS.Administration.WebServer
                     if (ManagementUnit.CommitRequested) {
 
                         try {
-                            ManagementUnit.ServerManager.CommitChanges();
+                            ConfigCommitGate.Commit(ManagementUnit.ServerManager.CommitChanges);
+                        }
+                        catch (ConfigurationConflictException e) {
+                            //
+                            // The commit raced with another change, so this transaction is now based on a
+                            // stale applicationHost.config and cannot be safely retried. Roll it back and tell
+                            // the client to start a NEW transaction rather than retrying this one (the
+                            // discarded transaction id would otherwise come back as "not found").
+                            AbortTransaction();
+                            throw new ConfigurationConflictException(
+                                "IIS configuration was modified by another change and the transaction was rolled back. Start a new transaction and retry.", e.InnerException);
                         }
                         catch {
                             AbortTransaction();

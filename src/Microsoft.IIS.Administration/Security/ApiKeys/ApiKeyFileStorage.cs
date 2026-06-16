@@ -230,14 +230,14 @@ namespace Microsoft.IIS.Administration.Security {
         private static ApiKey FromJson(dynamic key) {
             string tokenHash = DynamicHelper.Value(key.token_hash) ?? DynamicHelper.Value(key.hash);
             string tokenType = DynamicHelper.Value(key.token_type) ?? "SWT";
-            DateTime createdOn = DynamicHelper.To<DateTime>(key.created_on) ?? DateTime.UtcNow;
+            DateTime createdOn = DateTimeHelper.AsUtc(DynamicHelper.To<DateTime>(key.created_on) ?? DateTime.UtcNow);
 
             return new ApiKey(tokenHash, tokenType) {
                 Id = DynamicHelper.Value(key.id) ?? GenerateId(),
                 Purpose = DynamicHelper.Value(key.purpose) ?? string.Empty,
                 CreatedOn = createdOn,
-                ExpiresOn = DynamicHelper.To<DateTime>(key.expires_on),
-                LastModified = DynamicHelper.To<DateTime>(key.last_modified) ?? createdOn
+                ExpiresOn = DateTimeHelper.AsUtc(DynamicHelper.To<DateTime>(key.expires_on)),
+                LastModified = DateTimeHelper.AsUtc(DynamicHelper.To<DateTime>(key.last_modified) ?? createdOn)
             };
         }
 

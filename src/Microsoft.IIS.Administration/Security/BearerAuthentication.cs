@@ -23,8 +23,9 @@ namespace Microsoft.IIS.Administration.Security {
                 configure.Invoke(opts);
             }
 
-            IWebHostEnvironment env = services.BuildServiceProvider().GetRequiredService<IWebHostEnvironment>();
-            IConfiguration config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
+            var sp = services.BuildServiceProvider();
+            IWebHostEnvironment env = sp.GetRequiredService<IWebHostEnvironment>();
+            IConfiguration config = sp.GetRequiredService<IConfiguration>();
 
             var provider = new ApiKeyProvider(opts);
 
@@ -40,7 +41,8 @@ namespace Microsoft.IIS.Administration.Security {
             })
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
-                options.SecurityTokenValidators.Add(validator);
+                options.TokenHandlers.Clear();
+                options.TokenHandlers.Add(validator);
 
                 options.Events = new JwtBearerEvents()
                 {

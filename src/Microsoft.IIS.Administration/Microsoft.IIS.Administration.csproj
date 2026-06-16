@@ -38,6 +38,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Microsoft.IIS.Administration.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="config\api-keys.json" />
     <None Remove="config\appsettings.json" />
     <None Remove="config\modules.json" />
@@ -54,7 +58,7 @@
     <None Remove="wwwroot\js\connect.js" />
     <None Remove="wwwroot\js\explorer.js" />
     <None Remove="wwwroot\js\main.js" />
-    <None Remove="wwwroot\lib\jquery-3.2.0.min\jquery.min.js" />
+    <None Remove="wwwroot\lib\jquery-3.7.1.min\jquery.min.js" />
   </ItemGroup>
 
   <ItemGroup>
@@ -74,9 +78,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.AspNetCore.Hosting.WindowsServices" Version="6.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="6.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(SignType)' != '' ">
@@ -85,8 +89,11 @@
     </FilesToSign>
   </ItemGroup>
 
-  <Target Name="CreatConfigs" BeforeTargets="PrepareForBuild">
-    <Exec Command="powershell -NonInteractive -executionpolicy Unrestricted -command &quot;&amp;'..\..\scripts\build\Copy-Configs.ps1' '$(MSBuildProjectDirectory)'&quot;" />
+  <!-- Seed config\*.json from the *.default.json templates when missing (replaces Copy-Configs.ps1 so the build works cross-platform) -->
+  <Target Name="CreateConfigs" BeforeTargets="PrepareForBuild">
+    <Copy SourceFiles="config/api-keys.default.json" DestinationFiles="config/api-keys.json" Condition="!Exists('config/api-keys.json')" />
+    <Copy SourceFiles="config/appsettings.default.json" DestinationFiles="config/appsettings.json" Condition="!Exists('config/appsettings.json')" />
+    <Copy SourceFiles="config/modules.default.json" DestinationFiles="config/modules.json" Condition="!Exists('config/modules.json')" />
   </Target>
 
   <Target Name="CleanBuildDir" Condition="$(CleanBuildDir) != ''" AfterTargets="Build">
@@ -153,17 +160,8 @@
     <Content Include="wwwroot\js\main.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="wwwroot\lib\jquery-3.2.0.min\jquery.min.js">
+    <Content Include="wwwroot\lib\jquery-3.7.1.min\jquery.min.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <PropertyGroup>
-    <integrity-local>sha384-o9KO9jVK1Q4ybtHgJCCHfgQrTRNlkT6SL3j/qMuBMlDw3MmFrgrOHCOaIMJWGgK5</integrity-local>
-    <integrity-publish>sha384-tupH/ru0xhvFDtt7pNc8XKI51y+mB1jrINPiCxmcbC/rdQT0uuyt1etOWHml29CQ</integrity-publish>
-    <layoutfile>$(AppPublishRoot)\Views\Shared\_Layout.cshtml</layoutfile>
-  </PropertyGroup>
-  <Target Name="PostPublish" AfterTargets="Publish">
-     <!-- Replace the integrity code. Need different values for local debugging and published signed files  -->
-     <Exec Command="PowerShell -Command &quot;(Get-Content $(layoutfile)) -replace '$(integrity-local)', '$(integrity-publish)' | Out-File -encoding ASCII $(layoutfile)&quot; "/>
-  </Target>
 </Project>

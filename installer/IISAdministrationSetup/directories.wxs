@@ -45,7 +45,7 @@
       <Directory Id="RTDir" Name="runtimes">
         <Directory Id="RTWinDir" Name="win">
           <Directory Id="RTWinLibDir" Name="lib">
-            <Directory Id="Runtimes_Win_Lib_Net60" Name="net6.0" />
+            <Directory Id="Runtimes_Win_Lib_Net100" Name="net10.0" />
           </Directory>
         </Directory>
       </Directory>
@@ -79,7 +79,7 @@
       <Directory Id="wwwCSSDir" Name="css" />
       <Directory Id="wwwJSDir" Name="js" />
       <Directory Id="wwwLibDir" Name="lib">
-        <Directory Id="wwwjquery320Dir" Name="jquery-3.2.0.min" />
+        <Directory Id="wwwjquery371Dir" Name="jquery-3.7.1.min" />
       </Directory>
     </DirectoryRef>
   </Fragment>

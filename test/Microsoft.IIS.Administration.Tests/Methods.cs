@@ -12,23 +12,23 @@ namespace Microsoft.IIS.Administration.Tests
         [Theory]
         [InlineData("/api/webserver/websites")]
         [InlineData("/api/webserver/application-pools")]
-        public void Head(string resourceEndpoint)
+        public async System.Threading.Tasks.Task Head(string resourceEndpoint)
         {
             using (HttpClient client = ApiHttpClient.Create()) {
 
                 var req = new HttpRequestMessage(new HttpMethod("GET"), $"{Configuration.Instance().TEST_SERVER_URL}{resourceEndpoint}");
 
-                var res = client.SendAsync(req).Result;
+                var res = await client.SendAsync(req);
 
-                var getContent = res.Content.ReadAsStringAsync().Result;
+                var getContent = await res.Content.ReadAsStringAsync();
 
                 Assert.NotEqual(getContent, string.Empty);
 
                 req = new HttpRequestMessage(new HttpMethod("HEAD"), $"{Configuration.Instance().TEST_SERVER_URL}{resourceEndpoint}");
 
-                res = client.SendAsync(req).Result;
+                res = await client.SendAsync(req);
 
-                var headContent = res.Content.ReadAsStringAsync().Result;
+                var headContent = await res.Content.ReadAsStringAsync();
 
                 Assert.Equal(headContent, string.Empty);
             }

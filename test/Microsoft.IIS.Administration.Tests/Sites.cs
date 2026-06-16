@@ -516,7 +516,7 @@ namespace Microsoft.IIS.Administration.Tests
             return site == null ? null : Utils.FollowLink(client, site, "self");
         }
 
-        public static void EnsureNoSite(HttpClient client, string siteName)
+        internal static void EnsureNoSite(HttpClient client, string siteName)
         {
             JObject site = GetSite(client, siteName);
 

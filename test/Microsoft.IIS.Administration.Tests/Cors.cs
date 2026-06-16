@@ -12,7 +12,7 @@ namespace Microsoft.IIS.Administration.Tests
     public class Cors
     {
         [Fact]
-        public void EnsureCors()
+        public async System.Threading.Tasks.Task EnsureCors()
         {
             using (HttpClient client = ApiHttpClient.Create()) {
 
@@ -23,7 +23,7 @@ namespace Microsoft.IIS.Administration.Tests
                 
                 message.Headers.Add("Origin", "https://manage.iis.net");
 
-                HttpResponseMessage res = client.SendAsync(message).Result;
+                HttpResponseMessage res = await client.SendAsync(message);
 
                 Assert.True(res.StatusCode == HttpStatusCode.NoContent);
                 Assert.True(res.Headers.Contains("Access-Control-Allow-Origin"));

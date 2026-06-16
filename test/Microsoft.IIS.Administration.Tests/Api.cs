@@ -14,7 +14,7 @@ namespace Microsoft.IIS.Administration.Tests
         [Theory]
         [InlineData(1)]
         [InlineData(100)]
-        public void CanCommunicate(int runCount)
+        public async System.Threading.Tasks.Task CanCommunicate(int runCount)
         {
             using (HttpClient client = ApiHttpClient.Create()) {
 
@@ -22,7 +22,7 @@ namespace Microsoft.IIS.Administration.Tests
 
                 for(int i = 0; i < runCount; i++) {
 
-                    res = client.GetAsync(API_URL).Result;
+                    res = await client.GetAsync(API_URL);
                     Assert.True(Globals.Success(res));
                 }
             }
