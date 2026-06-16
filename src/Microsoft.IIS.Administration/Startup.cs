@@ -5,6 +5,7 @@
 namespace Microsoft.IIS.Administration {
     using AspNetCore.Builder;
     using AspNetCore.Hosting;
+    using AspNetCore.Hosting.Server.Features;
     using AspNetCore.Http;
     using AspNetCore.Mvc;
     using AspNetCore.Mvc.Formatters;
@@ -188,8 +189,31 @@ namespace Microsoft.IIS.Administration {
             });
             
             //
+            // Authoritative HTTPS guard: once the server has started its addresses are
+            // bound, so re-validate the actual listeners (restores the parity of the old
+            // UseHttps() extension and catches address sources, e.g. ASPNETCORE_URLS, that
+            // the config-time RequireHttps check in Program cannot see).
+            _ = applicationLifeTime.ApplicationStarted.Register(() => RequireHttps(app, applicationLifeTime));
+
+            //
             // Register for application shutdown
             _ = applicationLifeTime.ApplicationStopped.Register(() => AdminHost.Instance.StopModules());
+        }
+
+        private static void RequireHttps(IApplicationBuilder app, IHostApplicationLifetime applicationLifeTime) {
+            var serverAddresses = app.ServerFeatures.Get<IServerAddressesFeature>();
+
+            if (serverAddresses == null) {
+                return;
+            }
+
+            foreach (var address in serverAddresses.Addresses) {
+                if (!address.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
+                    Log.Fatal($"{address} - HTTPS is required. Shutting down.");
+                    applicationLifeTime.StopApplication();
+                    return;
+                }
+            }
         }
 
 

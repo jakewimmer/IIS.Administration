@@ -101,6 +101,11 @@ namespace Microsoft.IIS.Administration {
             }
         }
 
+        //
+        // Config-time HTTPS guard: validates the declared "urls" before the host is built.
+        // This is a best-effort early check; the authoritative guard is the post-bind
+        // validation of the actual server addresses in Startup.Configure, which also catches
+        // address sources this string check cannot see (e.g. ASPNETCORE_URLS).
         private static void RequireHttps(IConfiguration config) {
             string urls = config.GetValue<string>("urls") ?? DefaultUrl;
 
