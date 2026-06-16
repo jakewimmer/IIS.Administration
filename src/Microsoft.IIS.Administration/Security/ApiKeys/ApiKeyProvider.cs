@@ -85,6 +85,13 @@ namespace Microsoft.IIS.Administration.Security {
         }
 
         public ApiKey FindKey(string token) {
+            //
+            // Synchronous shim for non-hot-path callers (auditing, token controller). The
+            // authentication hot path uses FindKeyAsync so it never blocks a thread-pool thread.
+            return FindKeyAsync(token).GetAwaiter().GetResult();
+        }
+
+        public async Task<ApiKey> FindKeyAsync(string token) {
             if (string.IsNullOrWhiteSpace(token)) {
                 return null;
             }
@@ -114,7 +121,7 @@ namespace Microsoft.IIS.Administration.Security {
                 //
                 // Check stores
                 foreach (var s in _storages) {
-                    apiKey = s.GetKeyByHash(hmac).Result;
+                    apiKey = await s.GetKeyByHash(hmac);
 
                     if (apiKey != null) {
                         break;

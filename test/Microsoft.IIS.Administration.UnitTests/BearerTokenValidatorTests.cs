@@ -148,6 +148,8 @@ namespace Microsoft.IIS.Administration.UnitTests
                 return token == KnownToken ? _key : null;
             }
 
+            public Task<ApiKey> FindKeyAsync(string token) => Task.FromResult(FindKey(token));
+
             public ApiToken GenerateKey(string purpose) => throw new NotImplementedException();
 
             public Task<string> RenewToken(ApiKey key) => throw new NotImplementedException();

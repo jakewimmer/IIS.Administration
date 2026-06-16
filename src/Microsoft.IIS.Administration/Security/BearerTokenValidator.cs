@@ -21,13 +21,13 @@ namespace Microsoft.IIS.Administration.Security {
             _keyProvider = keyProvider ?? throw new ArgumentNullException(nameof(keyProvider));
         }
 
-        public override Task<TokenValidationResult> ValidateTokenAsync(string token,
-                                                                       TokenValidationParameters validationParameters) {
+        public override async Task<TokenValidationResult> ValidateTokenAsync(string token,
+                                                                             TokenValidationParameters validationParameters) {
             ApiKey key = null;
 
             // Look up api-key
             try {
-                key = _keyProvider.FindKey(token);
+                key = await _keyProvider.FindKeyAsync(token);
             }
             catch (Exception e) {
                 //
@@ -41,21 +41,21 @@ namespace Microsoft.IIS.Administration.Security {
             //
             // The api-key is not found, so the validation's failed.
             if (key == null) {
-                return Task.FromResult(new TokenValidationResult() {
+                return new TokenValidationResult() {
                     IsValid = false,
                     Exception = new SecurityTokenException("Invalid access token")
-                });
+                };
             }
 
             //
             // Success!
-            return Task.FromResult(new TokenValidationResult() {
+            return new TokenValidationResult() {
                 IsValid = true,
                 SecurityToken = new SecurityToken(key),
                 ClaimsIdentity = new ClaimsIdentity(
                     new Claim[] { new Claim(Core.Security.ClaimTypes.AccessToken, token) },
                     JwtBearerDefaults.AuthenticationScheme)
-            });
+            };
         }
 
 
