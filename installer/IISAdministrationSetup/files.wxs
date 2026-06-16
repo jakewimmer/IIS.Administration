@@ -112,7 +112,7 @@
 
   <Fragment>
     <ComponentGroup Id="WinRuntimesLib_Collection">
-      <Component Id="C_Net100_System.ServiceProcess.ServiceController.dll" Guid="A3EF6C12-347B-44FF-A7BD-8C366FBFE004" Directory="Runtimes_Win_Lib_Net100" Win64="$(var.IsWin64)">
+      <Component Id="C_Net100_System.ServiceProcess.ServiceController.dll" Guid="93ca527b-3596-40c7-8990-a59a12c6245e" Directory="Runtimes_Win_Lib_Net100" Win64="$(var.IsWin64)">
         <File Id="Net100_System.ServiceProcess.ServiceController.dll" KeyPath="yes" Source="$(var.APIDir)\runtimes\win\lib\net10.0\System.ServiceProcess.ServiceController.dll" />
       </Component>
       <!-- Reference files for Microsoft.Web.Administration.dll -->
