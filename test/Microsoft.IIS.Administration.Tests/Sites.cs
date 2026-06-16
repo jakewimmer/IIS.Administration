@@ -137,6 +137,64 @@ namespace Microsoft.IIS.Administration.Tests
                     Assert.True(DeleteSite(client, Utils.Self(site)));
             }
         }
+
+        [Fact]
+        public void PatchWithSameName_Succeeds()
+        {
+            // Regression test for upstream IIS.Administration#321: PATCHing a site while keeping its current
+            // name previously surfaced an unhandled HTTP 500. Re-applying the same name must be a no-op.
+            using (HttpClient client = ApiHttpClient.Create()) {
+
+                EnsureNoSite(client, TEST_SITE_NAME);
+                JObject site = CreateSite(_output, client, TEST_SITE_NAME, TEST_PORT, TEST_SITE_PATH);
+                Assert.NotNull(site);
+
+                try {
+                    var update = new {
+                        name = site.Value<string>("name"),
+                        server_auto_start = !site.Value<bool>("server_auto_start")
+                    };
+
+                    HttpResponseMessage response = client.PatchRaw(Utils.Self(site), update);
+                    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+                    JObject updated = JsonConvert.DeserializeObject<JObject>(response.Content.ReadAsStringAsync().Result);
+                    Assert.Equal(TEST_SITE_NAME, updated.Value<string>("name"));
+                    Assert.Equal(!site.Value<bool>("server_auto_start"), updated.Value<bool>("server_auto_start"));
+                }
+                finally {
+                    DeleteSite(client, Utils.Self(site));
+                }
+            }
+        }
+
+        [Fact]
+        public void PatchToExistingSiteName_Conflicts()
+        {
+            // A rename onto a different, already-existing site's name must return a clean 409 Conflict
+            // rather than the unhandled 500 that the missing uniqueness check used to produce.
+            const string otherSiteName = TEST_SITE_NAME + "_other";
+            const int otherPort = TEST_PORT + 1;
+
+            using (HttpClient client = ApiHttpClient.Create()) {
+
+                EnsureNoSite(client, TEST_SITE_NAME);
+                EnsureNoSite(client, otherSiteName);
+
+                JObject site = CreateSite(_output, client, TEST_SITE_NAME, TEST_PORT, TEST_SITE_PATH);
+                JObject other = CreateSite(_output, client, otherSiteName, otherPort, TEST_SITE_PATH);
+
+                try {
+                    HttpResponseMessage response = client.PatchRaw(Utils.Self(site), new { name = otherSiteName });
+                    Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                }
+                finally {
+                    DeleteSite(client, Utils.Self(site));
+                    DeleteSite(client, Utils.Self(other));
+                }
+            }
+        }
+
         [Fact]
         public void BindingConflict()
         {
