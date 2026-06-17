@@ -9,7 +9,7 @@
 [CmdletBinding()]
 param(
     [string] $BundleWxs = "installer/IISAdministrationBundle/iisadministration.wxs",
-    [string] $HeatExe = "installer/packages/WiX.3.11.1/tools/heat.exe"
+    [string] $HeatExe = "installer/packages/WiX.3.14.1/tools/heat.exe"
 )
 
 $ErrorActionPreference = 'Stop'
