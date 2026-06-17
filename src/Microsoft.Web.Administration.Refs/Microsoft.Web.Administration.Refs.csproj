@@ -78,7 +78,7 @@
     <PackageReference Include="System.Runtime.Handles" Version="4.0.0" />
     <PackageReference Include="System.Runtime.InteropServices" Version="4.1.0" />
     <PackageReference Include="System.Security.Principal.Windows" Version="4.0.0" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.1.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.9" />
     <PackageReference Include="System.Threading" Version="4.0.10" />
   </ItemGroup>
   <PropertyGroup>
