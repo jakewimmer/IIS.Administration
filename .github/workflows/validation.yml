@@ -56,12 +56,24 @@ jobs:
 
       - uses: microsoft/setup-msbuild@v2
 
-      # Only the base Web-Server role (with its default sub-features) - the API manages
-      # configuration through Microsoft.Web.Administration and does not need every IIS feature.
-      - name: Install IIS (Web-Server role only)
+      # Base Web-Server role plus the optional role services exercised by the integration suite.
+      # Without these modules the corresponding configuration sections are absent, so the API
+      # returns 404 for their feature endpoints (URL authorization, the Windows/Basic/Digest
+      # authentication schemes exercised by the delegation test, IP restrictions, tracing, dynamic
+      # compression, HTTP redirection), which the tests surface as null-reference failures.
+      - name: Install IIS (Web-Server role + tested role services)
         shell: powershell
         run: |
-          Install-WindowsFeature -Name Web-Server | Format-Table -AutoSize
+          Install-WindowsFeature -Name `
+            Web-Server, `
+            Web-Url-Auth, `
+            Web-Windows-Auth, `
+            Web-Basic-Auth, `
+            Web-Digest-Auth, `
+            Web-IP-Security, `
+            Web-Http-Tracing, `
+            Web-Dyn-Compression, `
+            Web-Http-Redirect | Format-Table -AutoSize
           Get-Service W3SVC | Format-Table -AutoSize
 
       # The Windows service runs as LocalSystem, which only finds machine-wide,
@@ -166,6 +178,49 @@ jobs:
           Write-Host '=== Service log files ==='
           Get-ChildItem 'C:\Program Files\IIS Administration' -Recurse -Include 'log*.txt', 'audit*.txt' -ErrorAction SilentlyContinue |
             ForEach-Object { Write-Host "--- $($_.FullName)"; Get-Content $_.FullName -Tail 120 }
+
+      # The API rejects any site/app/vdir physical_path outside its configured file-access
+      # allowlist (HTTP 403 Forbidden). A default install ships no files:locations, so register
+      # the integration test root before the suite runs (the dev appsettings template does the
+      # same). The block is injected before the final brace to avoid re-serializing - and risking
+      # corruption of - the existing security/auth configuration.
+      - name: Allow the integration test root in the API file access list
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path C:\tests -Force | Out-Null
+          $settings = Get-ChildItem 'C:\Program Files\IIS Administration' -Recurse -Filter appsettings.json -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -like '*\config\appsettings.json' } | Select-Object -First 1
+          if (-not $settings) { throw 'Installed config\appsettings.json not found' }
+          Write-Host "Updating $($settings.FullName)"
+          $raw = Get-Content $settings.FullName -Raw
+          if ($raw -notmatch '"files"') {
+            # The MSI installs this file owned by TrustedInstaller with Administrators granted only
+            # read, so the (elevated) runner still cannot overwrite it. Take ownership and grant the
+            # Administrators group (well-known SID S-1-5-32-544) full control first.
+            takeown /f $settings.FullName /a | Out-Null
+            icacls $settings.FullName /grant '*S-1-5-32-544:(F)' | Out-Null
+
+            $block = ',"files":{"locations":[{"alias":"tests","path":"C:\\tests","claims":["read","write"]}]}'
+            $idx = $raw.LastIndexOf('}')
+            $raw = $raw.Substring(0, $idx) + $block + $raw.Substring($idx)
+            Set-Content -Path $settings.FullName -Value $raw -NoNewline -Encoding utf8
+          }
+          Restart-Service 'Microsoft IIS Administration'
+          (Get-Service 'Microsoft IIS Administration').WaitForStatus('Running', '00:01:00')
+
+          # Wait until the API answers again before the suite starts (GetApiKey does not retry).
+          $handler = [System.Net.Http.HttpClientHandler]::new()
+          $handler.Credentials = [System.Net.NetworkCredential]::new('iisadminci', $env:IISADMINCI_PW)
+          $handler.ServerCertificateCustomValidationCallback = [System.Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
+          $client = [System.Net.Http.HttpClient]::new($handler)
+          $deadline = (Get-Date).AddSeconds(60)
+          do {
+            try {
+              $r = $client.GetAsync('https://localhost:55539/security/api-keys').GetAwaiter().GetResult()
+              if ([int]$r.StatusCode -eq 200) { Write-Host 'API ready'; break }
+            } catch { }
+            Start-Sleep -Seconds 2
+          } while ((Get-Date) -lt $deadline)
 
       # The integration suite predates this fork and requires broad IIS feature coverage;
       # it is informational until its results on hosted runners have been triaged.

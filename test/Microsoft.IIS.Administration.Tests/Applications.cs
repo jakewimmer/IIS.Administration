@@ -65,6 +65,7 @@ namespace Microsoft.IIS.Administration.Tests
             HttpResponseMessage response = client.PostAsync(APPLICATION_URL, content).Result;
 
             if (!Globals.Success(response)) {
+                result = Utils.ResponseError(response);
                 return false;
             }
 
@@ -91,7 +92,7 @@ namespace Microsoft.IIS.Administration.Tests
 
             JObject result;
             if (!CreateApplication(client, appStr, out result)) {
-                throw new Exception();
+                throw new Exception($"Failed to create test application: {result}");
             }
             return result;
         }

@@ -505,8 +505,9 @@ namespace Microsoft.IIS.Administration.Tests
 
             if (!Globals.Success(response))
             {
+                site = Utils.ResponseError(response);
                 output.WriteLine("Non-Success response:");
-                output.WriteLine(response.Content.ReadAsStringAsync().Result);
+                output.WriteLine(site.ToString());
                 return false;
             }
 
@@ -552,7 +553,7 @@ namespace Microsoft.IIS.Administration.Tests
             JObject result;
 
             if(!CreateSite(output, client, siteStr, out result)) {
-                throw new Exception();
+                throw new Exception($"Failed to create test site: {result}");
             }
 
             return result;
