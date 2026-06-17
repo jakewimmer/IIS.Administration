@@ -340,27 +340,28 @@ namespace Microsoft.IIS.Administration.Tests
 
                     using (var stresser = new SiteStresser($"http://localhost:{port}"))
                     using (var serverMonitor = new ServerMonitor(Utils.GetLink(appPool, "monitoring"))) {
-                        await Task.Delay(2000);
-
-                        JObject snapshot = serverMonitor.Current;
-
-                        _output.WriteLine("Validing monitoring data for application pool");
-                        _output.WriteLine(snapshot.ToString(Formatting.Indented));
-
-                        Assert.True(snapshot["requests"].Value<long>("total") > 0);
-                        Assert.True(snapshot["memory"].Value<long>("private_working_set") > 0);
-                        Assert.True(snapshot["memory"].Value<long>("system_in_use") > 0);
-                        Assert.True(snapshot["memory"].Value<long>("installed") > 0);
-                        Assert.True(snapshot["cpu"].Value<long>("threads") > 0);
-                        Assert.True(snapshot["cpu"].Value<long>("processes") > 0);
-
                         int tries = 0;
+                        JObject snapshot = null;
 
-                        while (tries < 5) {
+                        // Performance-counter population latency: an app pool's worker process
+                        // (w3wp) is created lazily on the first request it serves, and its counters
+                        // (private_working_set, requests, cpu, ...) only report non-zero values once
+                        // that process is up and the monitoring backend has sampled it across a few
+                        // intervals. That lag is independent of the request load (SiteStresser drives
+                        // continuous traffic every 20ms) and, on slow CI runners, can exceed the time
+                        // the requests take - an early snapshot legitimately reads 0 for these metrics.
+                        // So poll the monitor until every metric we assert on has populated rather than
+                        // asserting on the first snapshot; a 15s window still occasionally fell through
+                        // with a cold worker, so wait up to ~30s.
+                        while (tries < 30) {
 
                             snapshot = serverMonitor.Current;
 
-                            if (serverMonitor.Current["requests"].Value<long>("per_sec") > 0) {
+                            if (snapshot != null &&
+                                snapshot["requests"].Value<long>("total") > 0 &&
+                                snapshot["requests"].Value<long>("per_sec") > 0 &&
+                                snapshot["memory"].Value<long>("private_working_set") > 0 &&
+                                snapshot["cpu"].Value<long>("processes") > 0) {
                                 break;
                             }
 
@@ -372,6 +373,12 @@ namespace Microsoft.IIS.Administration.Tests
                         _output.WriteLine(snapshot.ToString(Formatting.Indented));
 
                         Assert.True(snapshot["requests"].Value<long>("per_sec") > 0);
+                        Assert.True(snapshot["requests"].Value<long>("total") > 0);
+                        Assert.True(snapshot["memory"].Value<long>("private_working_set") > 0);
+                        Assert.True(snapshot["memory"].Value<long>("system_in_use") > 0);
+                        Assert.True(snapshot["memory"].Value<long>("installed") > 0);
+                        Assert.True(snapshot["cpu"].Value<long>("threads") > 0);
+                        Assert.True(snapshot["cpu"].Value<long>("processes") > 0);
 
                         Assert.True(serverMonitor.ErrorCount == 0);
                     }
