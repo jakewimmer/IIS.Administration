@@ -32,6 +32,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # node/npm is required by the RestoreWebResources MSBuild target, which
+      # restores the self-hosted client-side libraries (jquery) during build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - uses: microsoft/setup-msbuild@v2
 
       - name: Restore solution
@@ -118,6 +124,12 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+
+      # node/npm is required by the RestoreWebResources MSBuild target, which
+      # restores the self-hosted client-side libraries (jquery) during build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       # The solution filter excludes Microsoft.Web.Administration.Refs, a legacy-format
       # .NET Framework shim project that only MSBuild on Windows can build.

@@ -29,8 +29,11 @@
     <div class="content">
         @RenderBody()
     </div>
-    <script src="~/lib/jquery-3.7.1.min/jquery.min.js"
-            integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"></script>
+    @* jQuery is restored from npm at build time (see package.json) and self-hosted from wwwroot/lib.
+       The path is version-agnostic so dependency bumps need no view change; the former Subresource
+       Integrity hash was version-specific and is dropped now that the script is served same-origin
+       (already constrained by the script-src 'self' Content-Security-Policy above). *@
+    <script src="~/lib/jquery/jquery.min.js"></script>
     <script src="~/js/main.js"></script>
     @RenderSection("scripts", false)
 </body>

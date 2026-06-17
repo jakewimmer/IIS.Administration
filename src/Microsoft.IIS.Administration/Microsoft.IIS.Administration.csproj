@@ -13,6 +13,8 @@
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
     <OutDir>$(AppOutputRoot)</OutDir>
     <PublishDir>$(AppPublishRoot)</PublishDir>
+    <!-- Keep the npm dependency tree out of the default item globs (it is restored at build time, not source). -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);node_modules\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -58,7 +60,7 @@
     <None Remove="wwwroot\js\connect.js" />
     <None Remove="wwwroot\js\explorer.js" />
     <None Remove="wwwroot\js\main.js" />
-    <None Remove="wwwroot\lib\jquery-3.7.1.min\jquery.min.js" />
+    <None Remove="wwwroot\lib\jquery\jquery.min.js" />
   </ItemGroup>
 
   <ItemGroup>
@@ -88,6 +90,19 @@
       <Authenticode>$(SigningIdentity)</Authenticode>
     </FilesToSign>
   </ItemGroup>
+
+  <!-- Restore client-side libraries from npm (replaces the former LibMan/cdnjs acquisition) and
+       stage them into wwwroot\lib. Runs before build; incremental on the npm manifests so it is a
+       no-op once jquery.min.js is up to date. Requires node/npm on PATH (provided by actions/setup-node in CI). -->
+  <Target Name="RestoreWebResources" BeforeTargets="PrepareForBuild"
+          Inputs="package.json;package-lock.json"
+          Outputs="wwwroot\lib\jquery\jquery.min.js">
+    <Message Importance="high" Text="Restoring client-side web resources via 'npm ci'..." />
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Copy SourceFiles="node_modules\jquery\dist\jquery.min.js"
+          DestinationFiles="wwwroot\lib\jquery\jquery.min.js"
+          SkipUnchangedFiles="true" />
+  </Target>
 
   <!-- Seed config\*.json from the *.default.json templates when missing (replaces Copy-Configs.ps1 so the build works cross-platform) -->
   <Target Name="CreateConfigs" BeforeTargets="PrepareForBuild">
@@ -160,7 +175,7 @@
     <Content Include="wwwroot\js\main.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="wwwroot\lib\jquery-3.7.1.min\jquery.min.js">
+    <Content Include="wwwroot\lib\jquery\jquery.min.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

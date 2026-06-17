@@ -34,6 +34,27 @@ updates:
           - minor
           - patch
 
+  # Client-side web resources (jquery, ...) self-hosted under wwwroot/lib. The
+  # package.json here is the real build input: the RestoreWebResources MSBuild
+  # target runs `npm ci` and stages the assets, so a Dependabot bump flows
+  # end-to-end through the next build.
+  - package-ecosystem: npm
+    directory: "/src/Microsoft.IIS.Administration"
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: dev
+    open-pull-requests-limit: 5
+    # Same 7-day supply-chain cooldown as the other ecosystems.
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+      - web-resources
+    commit-message:
+      prefix: build
+      include: scope
+
   # GitHub Actions used by the CI and Validation workflows.
   - package-ecosystem: github-actions
     directory: "/"

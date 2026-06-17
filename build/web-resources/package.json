@@ -1,9 +1,0 @@
-{
-  "name": "iis-administration-web-resources",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Tracking-only manifest that mirrors the client-side libraries declared in src/Microsoft.IIS.Administration/libman.json. It is NOT installed or built - it exists solely so Dependabot's npm ecosystem can watch these libraries for new releases. See README.md.",
-  "dependencies": {
-    "jquery": "3.7.1"
-  }
-}
