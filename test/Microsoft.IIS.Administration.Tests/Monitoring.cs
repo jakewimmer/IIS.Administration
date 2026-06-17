@@ -343,10 +343,16 @@ namespace Microsoft.IIS.Administration.Tests
                         int tries = 0;
                         JObject snapshot = null;
 
-                        // The app-pool worker process starts on the first request and its
-                        // performance counters can take a while to populate on slow CI runners
-                        // (a 15s window still occasionally fell through with a cold worker), so
-                        // wait up to ~30s for the monitoring data to warm up before asserting.
+                        // Performance-counter population latency: an app pool's worker process
+                        // (w3wp) is created lazily on the first request it serves, and its counters
+                        // (private_working_set, requests, cpu, ...) only report non-zero values once
+                        // that process is up and the monitoring backend has sampled it across a few
+                        // intervals. That lag is independent of the request load (SiteStresser drives
+                        // continuous traffic every 20ms) and, on slow CI runners, can exceed the time
+                        // the requests take - an early snapshot legitimately reads 0 for these metrics.
+                        // So poll the monitor until every metric we assert on has populated rather than
+                        // asserting on the first snapshot; a 15s window still occasionally fell through
+                        // with a cold worker, so wait up to ~30s.
                         while (tries < 30) {
 
                             snapshot = serverMonitor.Current;
