@@ -18,6 +18,7 @@ namespace Microsoft.IIS.Administration.Tests
     using System.Net;
     using System.IO;
     using System.Threading;
+    using System.Threading.Tasks;
     using System.Dynamic;
 
     public class Sites
@@ -139,7 +140,7 @@ namespace Microsoft.IIS.Administration.Tests
         }
 
         [Fact]
-        public void PatchWithSameName_Succeeds()
+        public async Task PatchWithSameName_Succeeds()
         {
             // Regression test for upstream IIS.Administration#321: PATCHing a site while keeping its current
             // name previously surfaced an unhandled HTTP 500. Re-applying the same name must be a no-op.
@@ -158,7 +159,7 @@ namespace Microsoft.IIS.Administration.Tests
                     HttpResponseMessage response = client.PatchRaw(Utils.Self(site), update);
                     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-                    JObject updated = JsonConvert.DeserializeObject<JObject>(response.Content.ReadAsStringAsync().Result);
+                    JObject updated = JsonConvert.DeserializeObject<JObject>(await response.Content.ReadAsStringAsync());
                     Assert.Equal(TEST_SITE_NAME, updated.Value<string>("name"));
                     Assert.Equal(!site.Value<bool>("server_auto_start"), updated.Value<bool>("server_auto_start"));
                 }
