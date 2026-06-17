@@ -1,0 +1,57 @@
+# Dependabot configuration
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# PRs open against `dev`, which is the default branch and the integration
+# target for both the CI and Validation workflows.
+version: 2
+updates:
+  # .NET / NuGet: a single "/" entry recursively discovers every PackageReference
+  # project under src/ and test/ as well as the installer's packages.config.
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: dev
+    open-pull-requests-limit: 10
+    # Supply-chain hardening: hold every new release for at least 7 days before
+    # opening a version-update PR, so freshly published (potentially compromised)
+    # package versions are not adopted immediately. Security updates are exempt
+    # from cooldown and still ship right away.
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+      - .NET
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      # Collapse the routine, low-risk bumps across all the projects into one PR
+      # each so 39 projects don't each spawn their own.
+      nuget-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions used by the CI and Validation workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: dev
+    open-pull-requests-limit: 5
+    # Same 7-day supply-chain cooldown applied to action version bumps.
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      github-actions:
+        patterns:
+          - "*"
