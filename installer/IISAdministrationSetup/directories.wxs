@@ -79,7 +79,7 @@
       <Directory Id="wwwCSSDir" Name="css" />
       <Directory Id="wwwJSDir" Name="js" />
       <Directory Id="wwwLibDir" Name="lib">
-        <Directory Id="wwwjquery371Dir" Name="jquery-3.7.1.min" />
+        <Directory Id="wwwJqueryDir" Name="jquery" />
       </Directory>
     </DirectoryRef>
   </Fragment>
