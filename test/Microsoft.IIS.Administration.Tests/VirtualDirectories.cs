@@ -71,6 +71,7 @@ namespace Microsoft.IIS.Administration.Tests
             HttpContent content = new StringContent(virtualDirectory, Encoding.UTF8, "application/json");
             HttpResponseMessage response = client.PostAsync(VDIR_URL, content).Result;
             if (!Globals.Success(response)) {
+                result = Utils.ResponseError(response);
                 return false;
             }
 
@@ -109,7 +110,7 @@ namespace Microsoft.IIS.Administration.Tests
 
             JObject result;
             if (!CreateVdir(client, vdirStr, out result)) {
-                throw new Exception();
+                throw new Exception($"Failed to create test virtual directory: {result}");
             }
             return result;
         }

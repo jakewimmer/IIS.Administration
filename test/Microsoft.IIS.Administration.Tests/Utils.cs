@@ -106,6 +106,24 @@ namespace Microsoft.IIS.Administration.Tests
             return JsonConvert.DeserializeObject<JObject>(value);
         }
 
+        // Capture a failed HTTP response as a JObject so setup/teardown helpers can surface the
+        // server's error (status + body) instead of throwing a blank exception.
+        public static JObject ResponseError(HttpResponseMessage response)
+        {
+            string body = response.Content.ReadAsStringAsync().Result;
+
+            JObject result;
+            try {
+                result = JObject.Parse(body);
+            }
+            catch {
+                result = new JObject { ["body"] = body };
+            }
+
+            result["http_status"] = (int)response.StatusCode;
+            return result;
+        }
+
         public static JObject GetFeature(HttpClient client, string url, string siteName, string path)
         {
             if (path != null) {
