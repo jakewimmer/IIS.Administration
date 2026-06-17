@@ -344,10 +344,10 @@ namespace Microsoft.IIS.Administration.Tests
                         JObject snapshot = null;
 
                         // The app-pool worker process starts on the first request and its
-                        // performance counters take several sample intervals to populate, so wait
-                        // for the monitoring data to warm up before asserting (mirrors WebSite()).
-                        // Asserting on an early snapshot is what made this test flaky.
-                        while (tries < 15) {
+                        // performance counters can take a while to populate on slow CI runners
+                        // (a 15s window still occasionally fell through with a cold worker), so
+                        // wait up to ~30s for the monitoring data to warm up before asserting.
+                        while (tries < 30) {
 
                             snapshot = serverMonitor.Current;
 
