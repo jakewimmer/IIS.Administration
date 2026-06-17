@@ -87,7 +87,7 @@ unchanged (versions bumped).
 MicroBuild/1ES infrastructure a fork cannot run, but keeping them intact preserves a clean diff for
 upstreaming PRs). The workflow:
 - **windows-latest:** nuget restore → `msbuild /t:publish` → unit tests → Clean-BuildDir →
-  installer restore/build (WiX 3.11 comes from `packages.config`) → uploads the same three
+  installer restore/build (WiX 3.14 comes from `packages.config`) → uploads the same three
   artifacts the old pipeline published (dist, bundle, MSI).
 - **ubuntu-latest:** `dotnet build` of `Microsoft.IIS.Administration.CrossPlatform.slnf` (all
   projects except the legacy `Microsoft.Web.Administration.Refs` shim) + unit tests.

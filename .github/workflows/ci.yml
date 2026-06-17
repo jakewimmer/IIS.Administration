@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: 22
 
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
 
       - name: Restore solution
         run: nuget restore Microsoft.IIS.Administration.sln
@@ -70,7 +70,7 @@ jobs:
 
       - name: Publish test results
         if: always()
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         with:
           name: Unit tests (Windows)
           path: TestResults/**/*.trx
@@ -158,7 +158,7 @@ jobs:
 
       - name: Publish test results
         if: always()
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         with:
           name: Unit tests (Linux)
           path: TestResults/**/*.trx
