@@ -77,5 +77,26 @@ namespace Microsoft.IIS.Administration.Tests {
                 return _config.Value<string>("ccs_user") ?? "IisAdminCcsTestR";
             }
         }
+
+        //
+        // Explicit Windows credentials for an API-owner account. When absent the test client
+        // falls back to the current user's default credentials (the normal local-dev path).
+        // On GitHub-hosted runners default-credential SSO yields an anonymous NTLM logon that
+        // the API rejects, so CI supplies a dedicated account here.
+        public string TEST_USERNAME
+        {
+            get
+            {
+                return _config.Value<string>("test_username");
+            }
+        }
+
+        public string TEST_PASSWORD
+        {
+            get
+            {
+                return _config.Value<string>("test_password");
+            }
+        }
     }
 }

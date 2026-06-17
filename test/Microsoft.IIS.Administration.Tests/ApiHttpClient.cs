@@ -5,6 +5,7 @@
 namespace Microsoft.IIS.Administration.Tests
 {
     using Core.Http;
+    using System.Net;
     using System.Net.Http;
 
     public class ApiHttpClient : HttpClient
@@ -23,7 +24,17 @@ namespace Microsoft.IIS.Administration.Tests
             handler.ServerCertificateCustomValidationCallback = (request, cert, chain, errors) => {
                 return true;
             };
-            handler.UseDefaultCredentials = true;
+
+            // Use explicit Windows credentials for an API-owner account when configured; otherwise
+            // fall back to the current user's default credentials. Default-credential SSO yields an
+            // anonymous NTLM logon on GitHub-hosted runners, which the API rejects (no XSRF token).
+            var config = Configuration.Instance();
+            if (!string.IsNullOrEmpty(config.TEST_USERNAME)) {
+                handler.Credentials = new NetworkCredential(config.TEST_USERNAME, config.TEST_PASSWORD);
+            }
+            else {
+                handler.UseDefaultCredentials = true;
+            }
 
             return new ApiHttpClient(serverUri, handler, true);
         }

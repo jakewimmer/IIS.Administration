@@ -25,10 +25,8 @@ namespace Microsoft.IIS.Administration.Tests
             var res = client.GetAsync(apiKeysUrl).Result;
 
             IEnumerable<string> values;
-            res.Headers.TryGetValues(HeaderNames.XSRF_TOKEN, out values);
-
-            if (values.Count() < 1) {
-                throw new Exception("Can't get Api Key");
+            if (!res.Headers.TryGetValues(HeaderNames.XSRF_TOKEN, out values) || values.Count() < 1) {
+                throw new Exception($"Can't get Api Key: no {HeaderNames.XSRF_TOKEN} header on GET {apiKeysUrl} (HTTP {(int)res.StatusCode}). Is the test client authenticated as an API owner?");
             }
 
             var body = new {
@@ -57,11 +55,9 @@ namespace Microsoft.IIS.Administration.Tests
             var res = client.GetAsync(apiKeysUrl).Result;
 
             IEnumerable<string> values;
-            res.Headers.TryGetValues(HeaderNames.XSRF_TOKEN, out values);
-
-            if (values.Count() < 1)
+            if (!res.Headers.TryGetValues(HeaderNames.XSRF_TOKEN, out values) || values.Count() < 1)
             {
-                throw new Exception("Can't delete Api Key");
+                throw new Exception($"Can't delete Api Key: no {HeaderNames.XSRF_TOKEN} header on GET {apiKeysUrl} (HTTP {(int)res.StatusCode}).");
             }
 
             string value = values.First();
