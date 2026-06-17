@@ -182,6 +182,12 @@ jobs:
           Write-Host "Updating $($settings.FullName)"
           $raw = Get-Content $settings.FullName -Raw
           if ($raw -notmatch '"files"') {
+            # The MSI installs this file owned by TrustedInstaller with Administrators granted only
+            # read, so the (elevated) runner still cannot overwrite it. Take ownership and grant the
+            # Administrators group (well-known SID S-1-5-32-544) full control first.
+            takeown /f $settings.FullName /a | Out-Null
+            icacls $settings.FullName /grant '*S-1-5-32-544:(F)' | Out-Null
+
             $block = ',"files":{"locations":[{"alias":"tests","path":"C:\\tests","claims":["read","write"]}]}'
             $idx = $raw.LastIndexOf('}')
             $raw = $raw.Substring(0, $idx) + $block + $raw.Substring($idx)
