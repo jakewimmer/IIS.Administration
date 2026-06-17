@@ -54,7 +54,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
 
       # Base Web-Server role plus the optional role services exercised by the integration suite.
       # Without these modules the corresponding configuration sections are absent, so the API
@@ -258,7 +258,7 @@ jobs:
 
       - name: Publish integration test results
         if: always()
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         with:
           name: Integration tests (${{ matrix.os }})
           path: TestResults/**/*.trx
