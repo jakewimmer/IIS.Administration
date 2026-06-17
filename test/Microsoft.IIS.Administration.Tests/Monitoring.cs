@@ -340,27 +340,22 @@ namespace Microsoft.IIS.Administration.Tests
 
                     using (var stresser = new SiteStresser($"http://localhost:{port}"))
                     using (var serverMonitor = new ServerMonitor(Utils.GetLink(appPool, "monitoring"))) {
-                        await Task.Delay(2000);
-
-                        JObject snapshot = serverMonitor.Current;
-
-                        _output.WriteLine("Validing monitoring data for application pool");
-                        _output.WriteLine(snapshot.ToString(Formatting.Indented));
-
-                        Assert.True(snapshot["requests"].Value<long>("total") > 0);
-                        Assert.True(snapshot["memory"].Value<long>("private_working_set") > 0);
-                        Assert.True(snapshot["memory"].Value<long>("system_in_use") > 0);
-                        Assert.True(snapshot["memory"].Value<long>("installed") > 0);
-                        Assert.True(snapshot["cpu"].Value<long>("threads") > 0);
-                        Assert.True(snapshot["cpu"].Value<long>("processes") > 0);
-
                         int tries = 0;
+                        JObject snapshot = null;
 
-                        while (tries < 5) {
+                        // The app-pool worker process starts on the first request and its
+                        // performance counters take several sample intervals to populate, so wait
+                        // for the monitoring data to warm up before asserting (mirrors WebSite()).
+                        // Asserting on an early snapshot is what made this test flaky.
+                        while (tries < 15) {
 
                             snapshot = serverMonitor.Current;
 
-                            if (serverMonitor.Current["requests"].Value<long>("per_sec") > 0) {
+                            if (snapshot != null &&
+                                snapshot["requests"].Value<long>("total") > 0 &&
+                                snapshot["requests"].Value<long>("per_sec") > 0 &&
+                                snapshot["memory"].Value<long>("private_working_set") > 0 &&
+                                snapshot["cpu"].Value<long>("processes") > 0) {
                                 break;
                             }
 
@@ -372,6 +367,12 @@ namespace Microsoft.IIS.Administration.Tests
                         _output.WriteLine(snapshot.ToString(Formatting.Indented));
 
                         Assert.True(snapshot["requests"].Value<long>("per_sec") > 0);
+                        Assert.True(snapshot["requests"].Value<long>("total") > 0);
+                        Assert.True(snapshot["memory"].Value<long>("private_working_set") > 0);
+                        Assert.True(snapshot["memory"].Value<long>("system_in_use") > 0);
+                        Assert.True(snapshot["memory"].Value<long>("installed") > 0);
+                        Assert.True(snapshot["cpu"].Value<long>("threads") > 0);
+                        Assert.True(snapshot["cpu"].Value<long>("processes") > 0);
 
                         Assert.True(serverMonitor.ErrorCount == 0);
                     }
