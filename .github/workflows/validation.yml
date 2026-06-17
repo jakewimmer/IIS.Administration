@@ -56,12 +56,20 @@ jobs:
 
       - uses: microsoft/setup-msbuild@v2
 
-      # Only the base Web-Server role (with its default sub-features) - the API manages
-      # configuration through Microsoft.Web.Administration and does not need every IIS feature.
-      - name: Install IIS (Web-Server role only)
+      # Base Web-Server role plus the optional role services exercised by the integration suite.
+      # Without these modules the corresponding configuration sections are absent, so the API
+      # returns 404 for their feature endpoints (URL authorization, IP restrictions, tracing,
+      # dynamic compression, HTTP redirection), which the tests surface as null-reference failures.
+      - name: Install IIS (Web-Server role + tested role services)
         shell: powershell
         run: |
-          Install-WindowsFeature -Name Web-Server | Format-Table -AutoSize
+          Install-WindowsFeature -Name `
+            Web-Server, `
+            Web-Url-Auth, `
+            Web-IP-Security, `
+            Web-Http-Tracing, `
+            Web-Dyn-Compression, `
+            Web-Http-Redirect | Format-Table -AutoSize
           Get-Service W3SVC | Format-Table -AutoSize
 
       # The Windows service runs as LocalSystem, which only finds machine-wide,
