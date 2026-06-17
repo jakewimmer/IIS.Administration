@@ -48,7 +48,7 @@
                   DetectCondition="(DOTNET_RUNTIME_VERSION) AND (DOTNET_RUNTIME_VERSION &gt;= DOTNET_RUNTIME_VERSION_MINIMAL)"
                   InstallCommand="/q /norestart">
           <!-- Information retrieved with the Heat tool of the WiX toolset -->
-          <!-- installer\packages\WiX.3.11.1\tools\heat.exe payload dotnet-runtime-6.0.1-win-x64.exe -o dotnet-runtime-6.0.1-win-x64.wxs -->
+          <!-- installer\packages\WiX.3.14.1\tools\heat.exe payload dotnet-runtime-6.0.1-win-x64.exe -o dotnet-runtime-6.0.1-win-x64.wxs -->
           <RemotePayload CertificatePublicKey="DDFC4D7ECEFA360694F0E32DE43CB39DD3E76D8C" 
                   CertificateThumbprint="43A50DB15AC95D0C1D187616AE187467975846D0"
                   Description="Microsoft .NET Runtime - 10.0.8 (x64)" 
@@ -77,7 +77,7 @@
                   InstallCommand="/q /norestart">
 
         <!-- Information retrieved with the Heat tool of the WiX toolset -->
-        <!-- installer\packages\WiX.3.11.1\tools\heat.exe payload aspnetcore-runtime-2.1.9-win-x64.exe -o aspnetcore-runtime-2.1.9-win-x64.wxs -->
+        <!-- installer\packages\WiX.3.14.1\tools\heat.exe payload aspnetcore-runtime-2.1.9-win-x64.exe -o aspnetcore-runtime-2.1.9-win-x64.wxs -->
         <RemotePayload CertificatePublicKey="DDFC4D7ECEFA360694F0E32DE43CB39DD3E76D8C" 
                   CertificateThumbprint="43A50DB15AC95D0C1D187616AE187467975846D0" 
                   Description="Microsoft ASP.NET Core 10.0.8 - Shared Framework (x64)" 
