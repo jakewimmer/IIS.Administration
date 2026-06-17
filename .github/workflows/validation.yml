@@ -174,11 +174,15 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path C:\tests -Force | Out-Null
+          # Authenticate the integration client as the dedicated API-owner account created for the
+          # smoke step; default-credential SSO is an anonymous NTLM logon on hosted runners.
           @{
             test_server    = 'https://localhost'
             test_port      = '55539'
             test_root_path = 'C:\tests'
             project_path   = '${{ github.workspace }}'
+            test_username  = 'iisadminci'
+            test_password  = $env:IISADMINCI_PW
           } | ConvertTo-Json | Set-Content test/Microsoft.IIS.Administration.Tests/test.config.json
           dotnet test test/Microsoft.IIS.Administration.Tests/Microsoft.IIS.Administration.Tests.csproj `
             --configuration Release --logger 'trx;LogFileName=integration.trx' --results-directory TestResults `
