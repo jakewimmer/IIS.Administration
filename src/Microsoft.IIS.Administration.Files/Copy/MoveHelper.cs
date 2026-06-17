@@ -8,6 +8,7 @@ namespace Microsoft.IIS.Administration.Files
     using Core.Utils;
     using Newtonsoft.Json.Linq;
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Dynamic;
     using System.IO;
@@ -106,7 +107,11 @@ namespace Microsoft.IIS.Administration.Files
             }
 
             var dirTasks = new List<Task>();
-            var fileTasks = new List<Task>();
+            // fileTasks is populated from inside the concurrent dirTasks below, so it must be a
+            // thread-safe collection: List<T>.Add races under concurrent writers and can silently
+            // drop a copy task, leaving Task.WhenAll to return before that file is written (an
+            // intermittent missing-file failure in directory copies).
+            var fileTasks = new ConcurrentBag<Task>();
             var children = Directory.EnumerateDirectories(source.Path, "*", SearchOption.AllDirectories);
 
             foreach (string dirPath in children) {
