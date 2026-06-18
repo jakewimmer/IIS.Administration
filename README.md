@@ -54,7 +54,6 @@ msbuild installer /p:configuration=release
 * If you don't have permissions for the APIs, add yourself to user group _"IIS Administration API Owners"_ on the host machine.
 * If you still don't have permissions after adding yourself to _"IIS Administration API Owners"_, add yourself to users/administrators and users/owners in appsettings.json.
 * If you have trouble viewing the Access Token created from the API Explorer in Microsoft Edge, go to [edge://settings/reset](edge://settings/reset) and reset your browser's settings.
-* Microsoft.Web.Administration.dll version conflicts with .Net 6.0: Remove all code related to **_"ms.web.admin.refs"_** in the future when it is ported to .Net 6.0.
 * Supports 64 bit Windows Server 2008 R2 and above
 
 ### Nano Server Installation: ###
