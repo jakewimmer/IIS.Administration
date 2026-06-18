@@ -44,8 +44,24 @@
     <IntermediateOutputPath>obj\$(Platform)\$(Configuration)\</IntermediateOutputPath>
   </PropertyGroup>
   <PropertyGroup>
-    <DefineConstants>$(DefineConstants);ArtifactsRoot=$(ArtifactsRoot)</DefineConstants>
+    <RefsHarvestDir>$(ArtifactsRoot)\Microsoft.IIS.Administration\refs</RefsHarvestDir>
+    <DefineConstants>$(DefineConstants);ArtifactsRoot=$(ArtifactsRoot);RefsHarvestDir=$(RefsHarvestDir)</DefineConstants>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The framework reference assemblies under dist\Microsoft.IIS.Administration\refs are emitted
+         by 'dotnet publish' (PreserveCompilationContext), and their exact set tracks the ASP.NET Core /
+         Microsoft.Extensions framework patch version. Harvest the folder with heat at build time instead
+         of enumerating each file, so the manifest always matches the publish output. Produces the
+         ComponentGroup 'Refs_Collection' (referenced by IISAdministrationFeature in iisadministration.wxs). -->
+    <HarvestDirectory Include="$(RefsHarvestDir)">
+      <DirectoryRefId>RefsDir</DirectoryRefId>
+      <ComponentGroupName>Refs_Collection</ComponentGroupName>
+      <PreprocessorVariable>var.RefsHarvestDir</PreprocessorVariable>
+      <SuppressCom>true</SuppressCom>
+      <SuppressRegistry>true</SuppressRegistry>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="directories.wxs" />
     <Compile Include="files.wxs" />
