@@ -32,6 +32,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # node/npm is required by the RestoreWebResources MSBuild target, which
+      # restores the self-hosted client-side libraries (jquery) during build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - uses: microsoft/setup-msbuild@v3
 
       - name: Restore solution
@@ -118,6 +124,12 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+
+      # node/npm is required by the RestoreWebResources MSBuild target, which
+      # restores the self-hosted client-side libraries (jquery) during build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Build
         run: dotnet build Microsoft.IIS.Administration.CrossPlatform.slnf --configuration Release

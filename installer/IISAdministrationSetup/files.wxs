@@ -1282,8 +1282,8 @@
       <Component Id="C_main.js" Guid="6092300E-6CF4-49E5-83E0-9CB16062D861" Directory="wwwJSDir" Win64="$(var.IsWin64)">
         <File Id="main.js" Source="$(var.APIDir)\wwwroot\js\main.js" />
       </Component>
-      <Component Id="C_jquery_min.js" Guid="26402a98-d703-4b7c-b487-dede291f613c" Directory="wwwjquery371Dir" Win64="$(var.IsWin64)">
-        <File Id="jquery.min.js" Source="$(var.APIDir)\wwwroot\lib\jquery-3.7.1.min\jquery.min.js" />
+      <Component Id="C_jquery_min.js" Guid="26402a98-d703-4b7c-b487-dede291f613c" Directory="wwwJqueryDir" Win64="$(var.IsWin64)">
+        <File Id="jquery.min.js" Source="$(var.APIDir)\wwwroot\lib\jquery\jquery.min.js" />
       </Component>
     </ComponentGroup>
   </Fragment>

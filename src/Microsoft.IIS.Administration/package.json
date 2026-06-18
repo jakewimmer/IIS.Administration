@@ -1,0 +1,9 @@
+{
+  "name": "microsoft.iis.administration.web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Client-side libraries for the IIS Administration connect/UI pages. Restored via 'npm ci' during the build (see the RestoreWebResources target in Microsoft.IIS.Administration.csproj) and staged into wwwroot/lib. Replaces the former LibMan/cdnjs acquisition so Dependabot's npm ecosystem tracks these dependencies natively.",
+  "dependencies": {
+    "jquery": "3.7.1"
+  }
+}
