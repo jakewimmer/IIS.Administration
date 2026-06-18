@@ -131,10 +131,14 @@ Tag v7.0.0 from the fork once Phase 7 passes; include a changelog summarizing th
 
 ## 3. Known debt / decisions
 - **`Microsoft.Web.Administration.Refs`** (the legacy net461 shim that shipped 2016-era facade DLLs
-  into `plugins/ms.web.admin.refs`) has been removed. On .NET 10 the default load context satisfies
-  every facade `Microsoft.Web.Administration` 11.1.0 depended on, so the last-resort probe of that
-  folder in `PluginAssemblyLoadContext` was dead weight; the Phase 7.4 Windows runtime validation
-  exercises the webserver plugins without it.
+  into `plugins/ms.web.admin.refs`) has been removed. `Microsoft.Web.Administration` 11.1.0 references
+  the .NET Standard 4.x facades (`System.Runtime`, `System.Collections`, `Microsoft.Win32.*`, …),
+  which on .NET 10 are type-forwarding shims unified into the shared framework. `PluginAssemblyLoadContext`
+  now resolves those references to the host's in-box assemblies: the major-version guard in
+  `LoadFromCurrentDomain` was relaxed so that when the host assembly is *newer* (e.g. host
+  `System.Runtime` 10.0.0.0 vs the plugin's requested 4.1.0.0) it unifies upward instead of throwing
+  a "major version conflict". With that, the old facade DLLs and their last-resort probe folder are
+  unnecessary; the Phase 7.4 Windows runtime validation exercises the webserver plugins without them.
 - The MicroBuild signing infrastructure (`sign.props`, MicroBuild.Core references) is retained but
   inert without Microsoft-internal pipelines; CI produces unsigned builds.
 - jQuery's `integrity-publish` hash now equals `integrity-local` — the upstream divergence existed

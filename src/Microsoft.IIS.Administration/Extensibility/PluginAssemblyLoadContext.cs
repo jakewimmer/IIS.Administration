@@ -38,10 +38,16 @@ namespace Microsoft.IIS.Administration.Extensibility
                     {
                         throw new ApplicationException($"Version downgrade for {target}, app: {existingName.Version} plugin: {target.Version}");
                     }
-                    if (existingName.Version.Major != target.Version.Major)
-                    {
-                        throw new ApplicationException($"Major version conflict for {target}, app: {existingName.Version} plugin: {target.Version}");
-                    }
+                    // Past the downgrade check the host assembly is always >= the version the
+                    // plugin asked for, so a differing major version here is an *upgrade* (host
+                    // newer), not a conflict. That is exactly the case for the .NET Standard 4.x
+                    // facades Microsoft.Web.Administration 11.1.0 references (System.Runtime,
+                    // System.Collections, Microsoft.Win32.*, …): on .NET 10 those are
+                    // type-forwarding shims unified into the shared framework, so resolving to
+                    // the host's in-box assembly is correct and lets the runtime's normal
+                    // forwarding satisfy the plugin. Returning it (rather than throwing on the
+                    // differing major) is what allows the legacy ms.web.admin.refs facade DLLs
+                    // to be dropped entirely.
                     if (existingName.Version != target.Version)
                     {
                         Log.Warning($"Version mismatch for {target}, app: {existingName.Version} plugin: {target.Version}");
