@@ -131,8 +131,6 @@ jobs:
         with:
           node-version: 22
 
-      # The solution filter excludes Microsoft.Web.Administration.Refs, a legacy-format
-      # .NET Framework shim project that only MSBuild on Windows can build.
       - name: Build
         run: dotnet build Microsoft.IIS.Administration.CrossPlatform.slnf --configuration Release
 
