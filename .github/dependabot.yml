@@ -20,6 +20,32 @@ updates:
     # from cooldown and still ship right away.
     cooldown:
       default-days: 7
+    # The Microsoft.Web.Administration.Refs project pins a set of 2016-era .NET
+    # facade packages on purpose: they are the exact assemblies Microsoft.Web.Administration
+    # 11.1.0 requests at runtime, shipped into plugins/ms.web.admin.refs so the IIS
+    # management plugins load on .NET 10. Bumping them breaks the build (newer releases
+    # drop the net46/DNXCore50 lib layout the publish step copies) and the runtime
+    # (the service fails to load the facade at startup), so hold them at their pinned
+    # versions. See PR #23 for the validation that proved removal/upgrade is unworkable.
+    ignore:
+      - dependency-name: "Microsoft.Win32.Primitives"
+      - dependency-name: "Microsoft.Win32.Registry"
+      - dependency-name: "System.Collections"
+      - dependency-name: "System.Diagnostics.Debug"
+      - dependency-name: "System.Diagnostics.Tools"
+      - dependency-name: "System.Diagnostics.TraceSource"
+      - dependency-name: "System.Globalization"
+      - dependency-name: "System.Net.Primitives"
+      - dependency-name: "System.Reflection"
+      - dependency-name: "System.Reflection.TypeExtensions"
+      - dependency-name: "System.Resources.ResourceManager"
+      - dependency-name: "System.Runtime"
+      - dependency-name: "System.Runtime.Extensions"
+      - dependency-name: "System.Runtime.Handles"
+      - dependency-name: "System.Runtime.InteropServices"
+      - dependency-name: "System.Security.Principal.Windows"
+      - dependency-name: "System.ServiceProcess.ServiceController"
+      - dependency-name: "System.Threading"
     labels:
       - dependencies
       - .NET
