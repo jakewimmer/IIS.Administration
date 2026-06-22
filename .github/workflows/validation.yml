@@ -24,7 +24,7 @@ jobs:
     name: Verify installer RemotePayload metadata
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
 
       - name: Restore installer packages (for heat.exe)
         run: nuget restore installer/IISAdministrationSetup/packages.config -SolutionDirectory installer
@@ -41,7 +41,7 @@ jobs:
       matrix:
         os: [windows-2025, windows-2022]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
 
       # Exercises issue #329/#331: JWT validation must work at a negative UTC offset.
       - name: Set timezone to UTC-10
@@ -56,7 +56,7 @@ jobs:
 
       # node/npm is required by the RestoreWebResources MSBuild target, which
       # restores the self-hosted client-side libraries (jquery) during build.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
 
