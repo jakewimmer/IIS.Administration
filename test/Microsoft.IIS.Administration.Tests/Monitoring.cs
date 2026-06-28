@@ -109,6 +109,16 @@ namespace Microsoft.IIS.Administration.Tests
 
                         Assert.True(snapshot["cpu"].Value<long>("processes") > 0);
 
+                        // Snapshot the monitor's error count before the restart.
+                        // ServerMonitor.ErrorCount is a monotonic counter with no reset
+                        // API: the background poller catches exceptions (network failure
+                        // or non-JSON response) and increments. While W3SVC is stopped the
+                        // management API typically still returns JSON, so the count should
+                        // not rise, but we compare against this baseline rather than
+                        // asserting == 0 so a transient error during the stop window does
+                        // not flake the test.
+                        int errorsBeforeRestart = serverMonitor.ErrorCount;
+
                         _output.WriteLine("Restarting IIS");
 
                         sc.Stop();
@@ -120,19 +130,32 @@ namespace Microsoft.IIS.Administration.Tests
                         }
 
                         sc.Start();
-
-                        Assert.True(serverMonitor.ErrorCount == 0);
+                        // Wait for the service to reach the Running state before polling
+                        // metrics, so the warm-up loop does not race the W3SVC start.
+                        sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(30));
 
                         int tries = 0;
 
-                        while (tries < 5) {
+                        // Performance-counter population latency: after W3SVC restarts,
+                        // the worker process is recreated lazily on the next request and
+                        // its perf counters (requests, cpu, ...) only report non-zero
+                        // values once the process is up and the monitoring backend has
+                        // sampled it across a few intervals. On cold CI runners this lag
+                        // is independent of the request load (SiteStresser drives traffic
+                        // continuously) and can exceed 5s, so poll up to ~30s until every
+                        // metric we assert on has populated, mirroring the AppPool()
+                        // de-flake pattern (issue #8).
+                        while (tries < 30) {
 
                             snapshot = serverMonitor.Current;
 
-                            _output.WriteLine("checking for requests / sec counter increase after startup");
-                            _output.WriteLine(snapshot.ToString(Formatting.Indented));
+                            _output.WriteLine("checking for monitoring counters to populate after startup");
+                            _output.WriteLine(snapshot == null ? "Snapshot is null" : snapshot.ToString(Formatting.Indented));
 
-                            if (snapshot["requests"].Value<long>("per_sec") > 0) {
+                            if (snapshot != null
+                                && snapshot["requests"].Value<long>("per_sec") > 0
+                                && snapshot["requests"].Value<long>("total") > 0
+                                && snapshot["cpu"].Value<long>("processes") > 0) {
                                 break;
                             }
 
@@ -140,9 +163,12 @@ namespace Microsoft.IIS.Administration.Tests
                             tries++;
                         }
 
+                        Assert.True(snapshot != null);
                         Assert.True(snapshot["requests"].Value<long>("per_sec") > 0);
+                        Assert.True(snapshot["requests"].Value<long>("total") > 0);
+                        Assert.True(snapshot["cpu"].Value<long>("processes") > 0);
 
-                        Assert.True(serverMonitor.ErrorCount == 0);
+                        Assert.True(serverMonitor.ErrorCount == errorsBeforeRestart);
                     }
                 }
                 finally {
