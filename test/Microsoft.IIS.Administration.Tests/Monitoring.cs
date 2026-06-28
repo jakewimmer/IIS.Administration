@@ -45,7 +45,16 @@ namespace Microsoft.IIS.Administration.Tests
                         int tries = 0;
                         JObject snapshot = null;
 
-                        while (tries < 10) {
+                        // Performance-counter population latency: the worker process (w3wp)
+                        // is created lazily on the first request it serves, and its counters
+                        // (requests, network, cpu, ...) only report non-zero values once that
+                        // process is up and the monitoring backend has sampled it across a few
+                        // intervals. On cold CI runners this lag is independent of the request
+                        // load (SiteStresser drives continuous traffic every 20ms) and can
+                        // exceed 10s, so poll up to ~30s until every metric we assert on has
+                        // populated, mirroring the AppPool() and HandleRestartIis() de-flake
+                        // patterns (issue #8, #12).
+                        while (tries < 30) {
 
                             snapshot = serverMonitor.Current;
 
@@ -54,13 +63,18 @@ namespace Microsoft.IIS.Administration.Tests
 
                             if (snapshot != null
                                 && snapshot["requests"].Value<long>("per_sec") > 0
-                                && snapshot["cpu"].Value<long>("threads") > 0) {
+                                && snapshot["requests"].Value<long>("total") > 0
+                                && snapshot["network"].Value<long>("total_bytes_sent") > 0
+                                && snapshot["cpu"].Value<long>("threads") > 0
+                                && snapshot["cpu"].Value<long>("processes") > 0) {
                                 break;
                             }
 
                             await Task.Delay(1000);
                             tries++;
                         }
+
+                        Assert.True(snapshot != null);
 
                         _output.WriteLine("Validating webserver monitoring data");
                         _output.WriteLine(snapshot.ToString(Formatting.Indented));
