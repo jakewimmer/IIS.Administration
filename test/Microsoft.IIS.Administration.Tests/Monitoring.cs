@@ -329,19 +329,27 @@ namespace Microsoft.IIS.Administration.Tests
                         int tries = 0;
                         JObject snapshot = null;
 
-                        while (tries < 15) {
+                        // Performance-counter population latency: same cold-runner warm-up
+                        // race as WebServer/HandleRestartIis/AppPool. The 15x1s poll can be
+                        // exhausted before per_sec populates on slow CI runners, so wait up
+                        // to ~30s for every metric we assert on.
+                        while (tries < 30) {
 
                             snapshot = serverMonitor.Current;
 
                             if (snapshot != null &&
-                                serverMonitor.Current["requests"].Value<long>("per_sec") > 0 &&
-                                snapshot["network"].Value<long>("total_bytes_sent") > 0) {
+                                snapshot["requests"].Value<long>("per_sec") > 0 &&
+                                snapshot["requests"].Value<long>("total") > 0 &&
+                                snapshot["network"].Value<long>("total_bytes_sent") > 0 &&
+                                snapshot["cpu"].Value<long>("processes") > 0) {
                                 break;
                             }
 
                             await Task.Delay(1000);
                             tries++;
                         }
+
+                        Assert.True(snapshot != null);
 
                         Assert.True(snapshot["requests"].Value<long>("per_sec") > 0);
                         Assert.True(snapshot["network"].Value<long>("total_bytes_sent") > 0);
