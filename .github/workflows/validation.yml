@@ -24,7 +24,7 @@ jobs:
     name: Verify installer RemotePayload metadata
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
 
       - name: Restore installer packages (for heat.exe)
         run: nuget restore installer/IISAdministrationSetup/packages.config -SolutionDirectory installer
@@ -41,7 +41,7 @@ jobs:
       matrix:
         os: [windows-2025, windows-2022]
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
 
       # Exercises issue #329/#331: JWT validation must work at a negative UTC offset.
       - name: Set timezone to UTC-10
@@ -50,7 +50,7 @@ jobs:
           Set-TimeZone -Id 'Hawaiian Standard Time'
           Get-TimeZone
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v5.3.0
         with:
           dotnet-version: 10.0.x
 
