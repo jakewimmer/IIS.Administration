@@ -50,11 +50,11 @@ namespace Microsoft.IIS.Administration.Tests
                         // (requests, network, cpu, ...) only report non-zero values once that
                         // process is up and the monitoring backend has sampled it across a few
                         // intervals. On cold CI runners this lag is independent of the request
-                        // load (SiteStresser drives continuous traffic every 20ms) and can
-                        // exceed 10s, so poll up to ~30s until every metric we assert on has
-                        // populated, mirroring the AppPool() and HandleRestartIis() de-flake
-                        // patterns (issue #8, #12).
-                        while (tries < 30) {
+                        // load (SiteStresser drives continuous traffic every 20ms); a ~30s
+                        // window still occasionally exhausted (WebSite hit the 30s wall on a
+                        // cold windows-2025 runner), so poll up to ~60s until every metric we
+                        // assert on has populated, matching the AppPool() de-flake (issue #8, #12).
+                        while (tries < 60) {
 
                             snapshot = serverMonitor.Current;
 
@@ -146,10 +146,10 @@ namespace Microsoft.IIS.Administration.Tests
                         // values once the process is up and the monitoring backend has
                         // sampled it across a few intervals. On cold CI runners this lag
                         // is independent of the request load (SiteStresser drives traffic
-                        // continuously) and can exceed 5s, so poll up to ~30s until every
-                        // metric we assert on has populated, mirroring the AppPool()
-                        // de-flake pattern (issue #8).
-                        while (tries < 30) {
+                        // continuously); a ~30s window proved marginal for the warm-up loops
+                        // here, so poll up to ~60s until every metric we assert on has
+                        // populated, mirroring the AppPool() de-flake pattern (issue #8).
+                        while (tries < 60) {
 
                             snapshot = serverMonitor.Current;
 
@@ -330,10 +330,10 @@ namespace Microsoft.IIS.Administration.Tests
                         JObject snapshot = null;
 
                         // Performance-counter population latency: same cold-runner warm-up
-                        // race as WebServer/HandleRestartIis/AppPool. The 15x1s poll can be
-                        // exhausted before per_sec populates on slow CI runners, so wait up
-                        // to ~30s for every metric we assert on.
-                        while (tries < 30) {
+                        // race as WebServer/HandleRestartIis/AppPool. A ~30s poll was
+                        // exhausted before per_sec populated on a cold windows-2025 runner,
+                        // so wait up to ~60s for every metric we assert on.
+                        while (tries < 60) {
 
                             snapshot = serverMonitor.Current;
 
