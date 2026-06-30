@@ -399,9 +399,11 @@ namespace Microsoft.IIS.Administration.Tests
                         // continuous traffic every 20ms) and, on slow CI runners, can exceed the time
                         // the requests take - an early snapshot legitimately reads 0 for these metrics.
                         // So poll the monitor until every metric we assert on has populated rather than
-                        // asserting on the first snapshot; a 15s window still occasionally fell through
-                        // with a cold worker, so wait up to ~30s.
-                        while (tries < 30) {
+                        // asserting on the first snapshot. A per-pool worker is slower to warm than the
+                        // server-wide counters (WebServer/WebSite populate in a few seconds), and a ~30s
+                        // window still fell through on ~20% of cold windows-2025/2022 runs, so wait up
+                        // to ~60s.
+                        while (tries < 60) {
 
                             snapshot = serverMonitor.Current;
 
@@ -416,6 +418,8 @@ namespace Microsoft.IIS.Administration.Tests
                             await Task.Delay(1000);
                             tries++;
                         }
+
+                        Assert.True(snapshot != null);
 
                         _output.WriteLine("Validing monitoring data for application pool");
                         _output.WriteLine(snapshot.ToString(Formatting.Indented));
