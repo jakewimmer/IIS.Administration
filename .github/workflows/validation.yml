@@ -249,6 +249,45 @@ jobs:
             --configuration Release --logger 'trx;LogFileName=integration.trx' --results-directory TestResults `
             --collect:"XPlat Code Coverage" --settings build/coverlet.runsettings
 
+      # The suite above is informational, but the tests below have been de-flaked and verified
+      # reliable across repeated hosted-runner executions, so a regression in them should gate
+      # the job. Grow this allowlist as more tests are triaged (the rest of the suite - e.g. the
+      # CentralCertificates tests, which need a Central Certificate Store this runner does not
+      # provision - stays informational until then). Parsing the trx avoids re-running the tests.
+      - name: Gate on de-flaked integration tests
+        shell: pwsh
+        run: |
+          $required = @(
+            'Monitoring.WebServer',
+            'Monitoring.WebSite',
+            'Monitoring.HandleRestartIis',
+            'Monitoring.AppPool',
+            'Sites.ChangeAllProperties'
+          )
+          $trx = Get-ChildItem TestResults -Recurse -Filter integration.trx -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $trx) { throw 'integration.trx not found - the integration suite did not produce results' }
+
+          [xml]$doc = Get-Content -LiteralPath $trx.FullName
+          $ns = @{ t = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010' }
+          $results = Select-Xml -Xml $doc -Namespace $ns -XPath '//t:UnitTestResult'
+
+          $failures = @()
+          foreach ($name in $required) {
+            $found = $results | Where-Object { $_.Node.testName -like "*.$name" }
+            if (-not $found) { $failures += "$name (no result found)"; continue }
+            foreach ($m in $found) {
+              if ($m.Node.outcome -ne 'Passed') { $failures += "$($m.Node.testName) -> $($m.Node.outcome)" }
+            }
+          }
+
+          if ($failures.Count -gt 0) {
+            Write-Host '::error::Gated (de-flaked) integration tests must pass on every run:'
+            $failures | ForEach-Object { Write-Host "::error::  $_" }
+            exit 1
+          }
+          Write-Host "All $($required.Count) gated tests passed."
+
       - name: Coverage report
         if: always()
         uses: danielpalme/ReportGenerator-GitHub-Action@5
