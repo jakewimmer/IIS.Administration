@@ -84,6 +84,11 @@ namespace Microsoft.IIS.Administration.Tests
                                                              Status.Stopped ? Status.Started :
                                                              Status.Stopped);
 
+                // Capture the target status we just assigned. We wait for this specific
+                // status after the PATCH because SitesController.Patch returns immediately
+                // after Start/Stop + Commit without resolving the status (unlike POST).
+                string expectedStatus = site.Value<string>("status");
+
                 JObject limits = (JObject)site["limits"];
                 limits["connection_timeout"] = limits.Value<long>("connection_timeout") - 1;
                 limits["max_bandwidth"] = limits.Value<long>("max_bandwidth") - 1;
@@ -109,30 +114,45 @@ namespace Microsoft.IIS.Administration.Tests
                 string body = JsonConvert.SerializeObject(site);
                 var result = client.AssertPatch(Utils.Self(site), body);
                 JObject newSite = JsonConvert.DeserializeObject<JObject>(result);
-                WaitForStatus(client, ref newSite);
+                WaitForStatus(client, ref newSite, expectedStatus);
 
-                Assert.True(Utils.JEquals<bool>(site, newSite, "server_auto_start"));
-                Assert.True(Utils.JEquals<string>(site, newSite, "physical_path"));
-                Assert.True(Utils.JEquals<string>(site, newSite, "enabled_protocols"));
-                Assert.True(Utils.JEquals<string>(site, newSite, "status", StringComparison.OrdinalIgnoreCase));
+                // Capture the response bindings for comparison: 'bindings' is the request
+                // object we sent; newSite["bindings"] is what the API returned. The old code
+                // assigned newBinding from bindings[i] too, making every binding assertion
+                // a no-op. Capture from the final newSite (the status-wait call above
+                // re-GETs and reassigns it).
+                JArray responseBindings = newSite.Value<JArray>("bindings");
+                Assert.Equal(bindings.Count, responseBindings.Count);
 
-                Assert.True(Utils.JEquals<long>(site, newSite, "limits.connection_timeout"));
-                Assert.True(Utils.JEquals<long>(site, newSite, "limits.max_bandwidth"));
-                Assert.True(Utils.JEquals<long>(site, newSite, "limits.max_connections"));
-                Assert.True(Utils.JEquals<long>(site, newSite, "limits.max_url_segments"));
+                try {
+                    Assert.True(Utils.JEquals<bool>(site, newSite, "server_auto_start"));
+                    Assert.True(Utils.JEquals<string>(site, newSite, "physical_path"));
+                    Assert.True(Utils.JEquals<string>(site, newSite, "enabled_protocols"));
+                    Assert.True(Utils.JEquals<string>(site, newSite, "status", StringComparison.OrdinalIgnoreCase));
 
-                for (var i = 0; i < bindings.Count; i++) {
-                    var oldBinding = (JObject)bindings[i];
-                    var newBinding = (JObject)bindings[i];
+                    Assert.True(Utils.JEquals<long>(site, newSite, "limits.connection_timeout"));
+                    Assert.True(Utils.JEquals<long>(site, newSite, "limits.max_bandwidth"));
+                    Assert.True(Utils.JEquals<long>(site, newSite, "limits.max_connections"));
+                    Assert.True(Utils.JEquals<long>(site, newSite, "limits.max_url_segments"));
 
-                    Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "protocol"));
-                    Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "port"));
-                    Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "ip_address"));
-                    Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "hostname"));
+                    for (var i = 0; i < bindings.Count; i++) {
+                        var oldBinding = (JObject)bindings[i];
+                        var newBinding = (JObject)responseBindings[i];
 
-                    if (newBinding.Value<string>("protocol").Equals("https")) {
-                        Assert.True(JToken.DeepEquals(oldBinding["certificate"], newBinding["certificate"]));
+                        Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "protocol"));
+                        Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "port"));
+                        Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "ip_address"));
+                        Assert.True(Utils.JEquals<string>(oldBinding, newBinding, "hostname"));
+
+                        if (newBinding.Value<string>("protocol").Equals("https")) {
+                            Assert.True(JToken.DeepEquals(oldBinding["certificate"], newBinding["certificate"]));
+                        }
                     }
+                }
+                catch {
+                    _output.WriteLine("ChangeAllProperties assertions failed. Final response body:");
+                    _output.WriteLine(newSite.ToString(Formatting.Indented));
+                    throw;
                 }
 
                     Assert.True(DeleteSite(client, Utils.Self(site)));
@@ -606,6 +626,32 @@ namespace Microsoft.IIS.Administration.Tests
                 }
 
                 Thread.Sleep(10);
+                client.Get(Utils.Self(site), out res);
+                site = JsonConvert.DeserializeObject<JObject>(res);
+            }
+        }
+
+        // After a PATCH that toggles Start/Stop, SitesController.Patch returns immediately
+        // after calling site.Start()/Stop() + Commit() without waiting for the state
+        // transition to settle (unlike POST, which calls WaitForSiteStatusResolve). So the
+        // status can be a transient "starting"/"stopping" when the PATCH response arrives.
+        // The overload above only polls while status == "unknown" and returns as soon as it
+        // is anything else — including transient states. This overload polls until the
+        // status reaches the expected target, with a ~30s budget (600 x 50ms) to accommodate
+        // cold CI runners where binding/cert provisioning and a cold site start can exceed
+        // the 5s budget of the overload above.
+        private void WaitForStatus(HttpClient client, ref JObject site, string expectedStatus)
+        {
+            string res;
+            int refreshCount = 0;
+            while (!site.Value<string>("status").Equals(expectedStatus, StringComparison.OrdinalIgnoreCase)) {
+                refreshCount++;
+                if (refreshCount > 600) {
+                    _output.WriteLine($"Timed out waiting for site status '{expectedStatus}'. Last status: '{site.Value<string>("status")}'");
+                    throw new Exception($"Timed out waiting for site status '{expectedStatus}'.");
+                }
+
+                Thread.Sleep(50);
                 client.Get(Utils.Self(site), out res);
                 site = JsonConvert.DeserializeObject<JObject>(res);
             }
