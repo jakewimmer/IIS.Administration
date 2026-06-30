@@ -114,7 +114,6 @@ namespace Microsoft.IIS.Administration.Tests
                 string body = JsonConvert.SerializeObject(site);
                 var result = client.AssertPatch(Utils.Self(site), body);
                 JObject newSite = JsonConvert.DeserializeObject<JObject>(result);
-                WaitForStatus(client, ref newSite);
                 WaitForStatus(client, ref newSite, expectedStatus);
 
                 // Capture the response bindings for comparison: 'bindings' is the request
